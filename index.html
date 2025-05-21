@@ -122,11 +122,18 @@
             position: relative;
             transition: transform 0.2s;
             border: 2px solid transparent;
+            overflow: hidden;
         }
 
         .child-avatar.active {
             border-color: var(--primary);
             transform: scale(1.1);
+        }
+
+        .child-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .add-child {
@@ -321,7 +328,7 @@
             border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
         }
 
         .record-item:last-child {
@@ -624,12 +631,6 @@
             color: var(--text-light);
         }
 
-        .milestone-description {
-            font-size: 0.85rem;
-            color: var(--text-light);
-            margin-top: 4px;
-        }
-
         .checkmark {
             color: var(--tertiary);
         }
@@ -659,7 +660,6 @@
             border-radius: 8px;
             overflow: hidden;
             position: relative;
-            cursor: pointer;
         }
 
         .photo-item img {
@@ -678,6 +678,19 @@
             font-size: 0.7rem;
             padding: 4px;
             text-align: center;
+        }
+
+        .interaction-photo {
+            margin-top: 8px;
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            max-height: 200px;
+        }
+
+        .interaction-photo img {
+            width: 100%;
+            object-fit: cover;
         }
 
         .growth-chart {
@@ -758,6 +771,40 @@
             animation: spin 1s infinite linear;
         }
 
+        .image-preview {
+            width: 100%;
+            height: 200px;
+            margin-top: 8px;
+            border-radius: var(--radius);
+            background-color: var(--primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 10px;
+            background-color: var(--primary-light);
+            color: var(--primary);
+            border-radius: var(--radius);
+            cursor: pointer;
+        }
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
@@ -834,7 +881,7 @@
         // 初始化 IndexedDB
         let db;
         const DB_NAME = 'BabyCareDB';
-        const DB_VERSION = 2;
+        const DB_VERSION = 1;
         
         // 當前選中的孩子 ID 及頁面
         let currentChildId = null;
@@ -907,14 +954,6 @@
                     const interactionsStore = db.createObjectStore('interactions', { keyPath: 'id', autoIncrement: true });
                     interactionsStore.createIndex('childId', 'childId', { unique: false });
                     interactionsStore.createIndex('timestamp', 'timestamp', { unique: false });
-                    interactionsStore.createIndex('hasPhoto', 'hasPhoto', { unique: false });
-                }
-                
-                // 照片儲存表
-                if (!db.objectStoreNames.contains('photos')) {
-                    const photosStore = db.createObjectStore('photos', { keyPath: 'id', autoIncrement: true });
-                    photosStore.createIndex('interactionId', 'interactionId', { unique: false });
-                    photosStore.createIndex('childId', 'childId', { unique: false });
                 }
             };
             
@@ -987,7 +1026,7 @@
                     <div class="form-group">
                         <label class="form-label">性別</label>
                         <div class="toggle-group">
-                            <div class="toggle-option active" data-value="男">男寶寶</div>
+                            <div class="toggle-option" data-value="男">男寶寶</div>
                             <div class="toggle-option" data-value="女">女寶寶</div>
                             <div class="toggle-option" data-value="其他">其他</div>
                         </div>
@@ -996,13 +1035,21 @@
                         <label class="form-label">出生日期</label>
                         <input type="date" class="form-control" id="child-birthdate" required>
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">上傳頭像</label>
+                        <input type="file" id="child-avatar" class="file-input" accept="image/*">
+                        <label for="child-avatar" class="file-label">選擇照片</label>
+                        <div id="avatar-preview" class="image-preview" style="display: none;">
+                            <img id="avatar-image" src="" alt="預覽">
+                        </div>
+                    </div>
                     <button type="submit" class="btn" style="width: 100%;">儲存</button>
                 </form>
             `;
             
             // 性別選擇切換
             const toggleOptions = modalBody.querySelectorAll('.toggle-option');
-            let selectedGender = '男';
+            let selectedGender = null;
             
             toggleOptions.forEach(option => {
                 option.addEventListener('click', () => {
@@ -1010,6 +1057,24 @@
                     option.classList.add('active');
                     selectedGender = option.dataset.value;
                 });
+            });
+            
+            // 頭像預覽
+            const avatarInput = document.getElementById('child-avatar');
+            const avatarPreview = document.getElementById('avatar-preview');
+            const avatarImage = document.getElementById('avatar-image');
+            
+            avatarInput.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    const reader = new FileReader();
+                    
+                    reader.onload = (e) => {
+                        avatarImage.src = e.target.result;
+                        avatarPreview.style.display = 'block';
+                    };
+                    
+                    reader.readAsDataURL(e.target.files[0]);
+                }
             });
             
             // 表單提交
@@ -1031,7 +1096,8 @@
                     name: name,
                     gender: selectedGender,
                     birthdate: birthdate,
-                    createdAt: new Date().toISOString()
+                    createdAt: new Date().toISOString(),
+                    avatar: avatarImage.src || null
                 };
                 
                 addChild(childData);
@@ -1069,96 +1135,83 @@
             };
         }
 
-        // 產生預設里程碑資料
+        // 產生預設里程碑資料 (擴充版)
         function generateDefaultMilestones(childId) {
             const defaultMilestones = [
-                // 動作發展 (motor)
-                { childId, category: 'motor', title: '能夠抬頭', ageMonths: 1, completed: false, description: '俯臥時可短暫抬頭' },
-                { childId, category: 'motor', title: '能夠支撐頭部', ageMonths: 2, completed: false, description: '直立抱著時頭部能保持穩定' },
-                { childId, category: 'motor', title: '俯臥時能抬頭90度', ageMonths: 3, completed: false, description: '俯臥時能抬頭並保持穩定' },
-                { childId, category: 'motor', title: '會翻身', ageMonths: 4, completed: false, description: '從仰臥到俯臥，或從俯臥到仰臥' },
-                { childId, category: 'motor', title: '會滾動移動', ageMonths: 5, completed: false, description: '透過滾動身體來移動位置' },
-                { childId, category: 'motor', title: '能坐直', ageMonths: 6, completed: false, description: '短時間內可獨立坐直' },
-                { childId, category: 'motor', title: '獨立坐穩', ageMonths: 7, completed: false, description: '能長時間獨立坐著而不倒' },
-                { childId, category: 'motor', title: '能爬行', ageMonths: 8, completed: false, description: '用四肢爬行移動' },
-                { childId, category: 'motor', title: '能扶物站立', ageMonths: 9, completed: false, description: '能扶著傢俱或牆壁站立' },
-                { childId, category: 'motor', title: '能扶物走路', ageMonths: 10, completed: false, description: '扶著傢俱或牆壁行走幾步' },
-                { childId, category: 'motor', title: '獨立站立', ageMonths: 11, completed: false, description: '能短暫獨立站立不扶物' },
-                { childId, category: 'motor', title: '獨立走路', ageMonths: 12, completed: false, description: '能獨立行走幾步' },
-                { childId, category: 'motor', title: '能蹲下撿物', ageMonths: 14, completed: false, description: '能蹲下拿東西後再站起' },
-                { childId, category: 'motor', title: '能爬樓梯', ageMonths: 16, completed: false, description: '能手腳並用爬上樓梯' },
-                { childId, category: 'motor', title: '會跑步', ageMonths: 18, completed: false, description: '能快速移動且較少跌倒' },
-                { childId, category: 'motor', title: '能踢球', ageMonths: 21, completed: false, description: '能用腳踢球前進' },
-                { childId, category: 'motor', title: '能原地跳', ageMonths: 24, completed: false, description: '能雙腳同時離地跳躍' },
-                { childId, category: 'motor', title: '能單腳站立', ageMonths: 30, completed: false, description: '能單腳站立數秒' },
-                { childId, category: 'motor', title: '能騎三輪車', ageMonths: 36, completed: false, description: '能踩踏板騎三輪車' },
+                // 動作發展里程碑 (motor)
+                { childId, category: 'motor', title: '能抬頭', ageMonths: 1, completed: false, description: '趴著時能抬頭45度角' },
+                { childId, category: 'motor', title: '能頭部平穩', ageMonths: 3, completed: false, description: '豎抱時頭部能保持平穩' },
+                { childId, category: 'motor', title: '翻身(趴翻仰)', ageMonths: 4, completed: false, description: '能從趴姿翻轉為仰躺' },
+                { childId, category: 'motor', title: '翻身(仰翻趴)', ageMonths: 5, completed: false, description: '能從仰躺翻轉為趴姿' },
+                { childId, category: 'motor', title: '獨坐', ageMonths: 6, completed: false, description: '能不支撐獨自坐立片刻' },
+                { childId, category: 'motor', title: '穩坐', ageMonths: 7, completed: false, description: '能穩定獨坐較長時間' },
+                { childId, category: 'motor', title: '爬行', ageMonths: 8, completed: false, description: '能有效爬行移動' },
+                { childId, category: 'motor', title: '扶站', ageMonths: 9, completed: false, description: '能扶著物體站立' },
+                { childId, category: 'motor', title: '扶走', ageMonths: 10, completed: false, description: '能扶著物體走路' },
+                { childId, category: 'motor', title: '獨站', ageMonths: 11, completed: false, description: '能不扶物短暫獨立站立' },
+                { childId, category: 'motor', title: '獨走', ageMonths: 12, completed: false, description: '能獨立走幾步' },
+                { childId, category: 'motor', title: '穩定走路', ageMonths: 15, completed: false, description: '能穩定走路較長距離' },
+                { childId, category: 'motor', title: '蹲下再站起', ageMonths: 18, completed: false, description: '能獨立蹲下拿東西再站起' },
+                { childId, category: 'motor', title: '上下樓梯', ageMonths: 24, completed: false, description: '能扶著扶手上下樓梯' },
+                { childId, category: 'motor', title: '跳躍', ageMonths: 30, completed: false, description: '能雙腳跳躍' },
                 
-                // 語言發展 (language)
-                { childId, category: 'language', title: '會發出咕咕聲', ageMonths: 1, completed: false, description: '發出簡單的元音聲音' },
-                { childId, category: 'language', title: '會笑出聲', ageMonths: 2, completed: false, description: '能發出笑聲回應互動' },
-                { childId, category: 'language', title: '會發出不同聲音', ageMonths: 3, completed: false, description: '發出多種聲音表達不同情緒' },
-                { childId, category: 'language', title: '會牙牙學語', ageMonths: 5, completed: false, description: '重複發出相似的音節' },
-                { childId, category: 'language', title: '發出「爸爸、媽媽」音節', ageMonths: 7, completed: false, description: '能發出像「爸爸、媽媽」的音節，但未理解意義' },
-                { childId, category: 'language', title: '有意識叫爸媽', ageMonths: 9, completed: false, description: '能有意識叫出爸爸、媽媽，對應正確的人' },
-                { childId, category: 'language', title: '理解簡單指令', ageMonths: 10, completed: false, description: '能理解「給我」、「不要」等簡單指令' },
-                { childId, category: 'language', title: '會說3-5個單字', ageMonths: 12, completed: false, description: '能說出3-5個有意義的單字' },
-                { childId, category: 'language', title: '會說10個以上單字', ageMonths: 15, completed: false, description: '詞彙量增加到10個以上' },
-                { childId, category: 'language', title: '簡單詞組表達', ageMonths: 18, completed: false, description: '能用2-3個單字組成簡單表達' },
-                { childId, category: 'language', title: '能說50個以上單字', ageMonths: 21, completed: false, description: '詞彙量增加到50個以上' },
-                { childId, category: 'language', title: '能說簡單句子', ageMonths: 24, completed: false, description: '能說出3-4個字的簡單句子' },
-                { childId, category: 'language', title: '會用代名詞', ageMonths: 28, completed: false, description: '能正確使用「我」、「你」等代名詞' },
-                { childId, category: 'language', title: '能說出自己名字', ageMonths: 30, completed: false, description: '會完整說出自己的名字' },
-                { childId, category: 'language', title: '能說出100個以上單字', ageMonths: 36, completed: false, description: '詞彙量豐富，能流暢表達需求' },
+                // 語言能力里程碑 (language)
+                { childId, category: 'language', title: '咕咕聲', ageMonths: 2, completed: false, description: '能發出咕咕聲回應' },
+                { childId, category: 'language', title: '笑聲', ageMonths: 3, completed: false, description: '能發出笑聲' },
+                { childId, category: 'language', title: '牙牙學語', ageMonths: 6, completed: false, description: '能發出連續音節如"爸爸媽媽"' },
+                { childId, category: 'language', title: '模仿聲音', ageMonths: 9, completed: false, description: '能嘗試模仿大人說話的聲音' },
+                { childId, category: 'language', title: '理解詞意', ageMonths: 10, completed: false, description: '懂得"不要"、"再見"等常用詞' },
+                { childId, category: 'language', title: '第一個詞', ageMonths: 12, completed: false, description: '能有意義地說出第一個詞' },
+                { childId, category: 'language', title: '詞彙增加', ageMonths: 15, completed: false, description: '能說出5-10個有意義的詞語' },
+                { childId, category: 'language', title: '兩字組合', ageMonths: 18, completed: false, description: '能用兩個詞語組合表達意思' },
+                { childId, category: 'language', title: '簡單句子', ageMonths: 24, completed: false, description: '能說出簡單的句子' },
+                { childId, category: 'language', title: '複雜對話', ageMonths: 36, completed: false, description: '能進行簡單的對話交流' },
                 
-                // 社交發展 (social)
-                { childId, category: 'social', title: '注視人臉', ageMonths: 1, completed: false, description: '能專注看著人臉' },
-                { childId, category: 'social', title: '社交性微笑', ageMonths: 2, completed: false, description: '對人的互動做出微笑回應' },
-                { childId, category: 'social', title: '認識熟悉的人', ageMonths: 3, completed: false, description: '對熟悉的人有特別反應' },
-                { childId, category: 'social', title: '明顯尋求注意', ageMonths: 4, completed: false, description: '當被忽略時會尋求注意' },
-                { childId, category: 'social', title: '喜歡鏡中影像', ageMonths: 5, completed: false, description: '對著鏡子裡的自己互動' },
-                { childId, category: 'social', title: '表現陌生人焦慮', ageMonths: 6, completed: false, description: '對陌生人表現出不安或害怕' },
-                { childId, category: 'social', title: '玩躲貓貓遊戲', ageMonths: 7, completed: false, description: '喜歡並參與躲貓貓等互動遊戲' },
-                { childId, category: 'social', title: '模仿簡單動作', ageMonths: 8, completed: false, description: '能模仿大人的簡單動作' },
-                { childId, category: 'social', title: '會揮手再見', ageMonths: 9, completed: false, description: '理解並做出揮手再見的動作' },
-                { childId, category: 'social', title: '會給予物品', ageMonths: 10, completed: false, description: '主動給予物品給別人' },
-                { childId, category: 'social', title: '會幫忙家事', ageMonths: 12, completed: false, description: '嘗試幫忙簡單家事，如擦桌子' },
-                { childId, category: 'social', title: '表現依附行為', ageMonths: 14, completed: false, description: '離開主要照顧者時表現不安' },
-                { childId, category: 'social', title: '觀察模仿生活', ageMonths: 16, completed: false, description: '模仿大人日常生活動作' },
-                { childId, category: 'social', title: '表達情感需求', ageMonths: 18, completed: false, description: '能表達「抱抱」等情感需求' },
-                { childId, category: 'social', title: '與同齡孩子互動', ageMonths: 21, completed: false, description: '開始對同齡孩子產生興趣' },
-                { childId, category: 'social', title: '平行遊戲', ageMonths: 24, completed: false, description: '在其他孩子旁邊玩，但各玩各的' },
-                { childId, category: 'social', title: '認識自我形象', ageMonths: 28, completed: false, description: '有自我認同，知道鏡中是自己' },
-                { childId, category: 'social', title: '輪流分享玩具', ageMonths: 32, completed: false, description: '開始學習輪流和分享概念' },
-                { childId, category: 'social', title: '表達同理心', ageMonths: 36, completed: false, description: '能對他人情緒表達關心' },
+                // 社交能力里程碑 (social)
+                { childId, category: 'social', title: '社交性微笑', ageMonths: 2, completed: false, description: '能對人表現出社交性的微笑' },
+                { childId, category: 'social', title: '回應名字', ageMonths: 4, completed: false, description: '聽到名字時會有反應' },
+                { childId, category: 'social', title: '害怕陌生人', ageMonths: 6, completed: false, description: '對陌生人表現出不安或害怕' },
+                { childId, category: 'social', title: '玩躲貓貓', ageMonths: 7, completed: false, description: '喜歡參與躲貓貓等互動遊戲' },
+                { childId, category: 'social', title: '模仿動作', ageMonths: 9, completed: false, description: '會模仿大人的簡單動作' },
+                { childId, category: 'social', title: '揮手再見', ageMonths: 10, completed: false, description: '會揮手表示再見' },
+                { childId, category: 'social', title: '展示物品', ageMonths: 12, completed: false, description: '主動向他人展示自己的物品' },
+                { childId, category: 'social', title: '幫忙收拾', ageMonths: 15, completed: false, description: '願意參與簡單的家務活動' },
+                { childId, category: 'social', title: '平行遊戲', ageMonths: 18, completed: false, description: '能在其他孩子旁邊玩耍(但不一定互動)' },
+                { childId, category: 'social', title: '輪流玩', ageMonths: 24, completed: false, description: '能理解輪流的概念' },
+                { childId, category: 'social', title: '合作遊戲', ageMonths: 36, completed: false, description: '能與其他孩子合作玩耍' },
                 
-                // 認知發展 (cognitive)
-                { childId, category: 'cognitive', title: '追視物體', ageMonths: 1, completed: false, description: '能用眼睛追視移動的物體' },
-                { childId, category: 'cognitive', title: '轉頭尋聲音', ageMonths: 2, completed: false, description: '聽到聲音會轉頭尋找來源' },
-                { childId, category: 'cognitive', title: '對新物體有興趣', ageMonths: 3, completed: false, description: '對新物體表現出好奇與興趣' },
-                { childId, category: 'cognitive', title: '抓取物品', ageMonths: 4, completed: false, description: '能主動抓取看到的物品' },
-                { childId, category: 'cognitive', title: '物品傳遞', ageMonths: 5, completed: false, description: '能將物品從一手傳到另一手' },
-                { childId, category: 'cognitive', title: '探索物體特性', ageMonths: 6, completed: false, description: '拍打、搖晃、咬物品來探索' },
-                { childId, category: 'cognitive', title: '了解因果關係', ageMonths: 7, completed: false, description: '知道按按鈕會發出聲音等因果關係' },
-                { childId, category: 'cognitive', title: '尋找藏起物品', ageMonths: 8, completed: false, description: '能找出藏起來的玩具或物品' },
-                { childId, category: 'cognitive', title: '理解遊戲規則', ageMonths: 9, completed: false, description: '開始理解簡單遊戲的規則' },
-                { childId, category: 'cognitive', title: '指物示意', ageMonths: 10, completed: false, description: '用手指指出想要的物品' },
-                { childId, category: 'cognitive', title: '功能性使用物品', ageMonths: 12, completed: false, description: '會正確使用梳子、電話等物品' },
-                { childId, category: 'cognitive', title: '疊放積木', ageMonths: 14, completed: false, description: '能疊放2-3塊積木' },
-                { childId, category: 'cognitive', title: '瞭解空間關係', ageMonths: 16, completed: false, description: '理解「裡面」「外面」等空間概念' },
-                { childId, category: 'cognitive', title: '解決簡單問題', ageMonths: 18, completed: false, description: '能想出方法拿到夠不著的玩具' },
-                { childId, category: 'cognitive', title: '符號性思維', ageMonths: 21, completed: false, description: '能用一個物體代表另一個物體玩扮演遊戲' },
-                { childId, category: 'cognitive', title: '分類能力', ageMonths: 24, completed: false, description: '能依顏色或形狀分類物品' },
-                { childId, category: 'cognitive', title: '瞭解數量概念', ageMonths: 28, completed: false, description: '開始理解「多」「少」的概念' },
-                { childId, category: 'cognitive', title: '記憶能力增強', ageMonths: 32, completed: false, description: '能記住並重述簡短故事情節' },
-                { childId, category: 'cognitive', title: '理解抽象概念', ageMonths: 36, completed: false, description: '開始理解時間概念如「等一下」、「明天」' },
+                // 認知發展里程碑 (cognitive)
+                { childId, category: 'cognitive', title: '目光追蹤', ageMonths: 1, completed: false, description: '能用目光追蹤移動中的物體' },
+                { childId, category: 'cognitive', title: '認識熟人', ageMonths: 3, completed: false, description: '能認出熟悉的人' },
+                { childId, category: 'cognitive', title: '尋找物體', ageMonths: 5, completed: false, description: '會尋找部分隱藏的物體' },
+                { childId, category: 'cognitive', title: '因果關係', ageMonths: 7, completed: false, description: '理解簡單的因果關係，如按鈕發聲' },
+                { childId, category: 'cognitive', title: '物體恆存', ageMonths: 8, completed: false, description: '理解看不見的物體仍然存在' },
+                { childId, category: 'cognitive', title: '指物', ageMonths: 11, completed: false, description: '用手指向想要的物體' },
+                { childId, category: 'cognitive', title: '功能理解', ageMonths: 14, completed: false, description: '理解物品的基本功能，如杯子用來喝水' },
+                { childId, category: 'cognitive', title: '符號使用', ageMonths: 18, completed: false, description: '使用物體代表其他事物進行象徵性遊戲' },
+                { childId, category: 'cognitive', title: '配對分類', ageMonths: 24, completed: false, description: '能按形狀或顏色進行簡單分類' },
+                { childId, category: 'cognitive', title: '數量概念', ageMonths: 30, completed: false, description: '理解"多"和"少"的區別' },
+                { childId, category: 'cognitive', title: '顏色辨識', ageMonths: 36, completed: false, description: '能正確辨認並命名主要顏色' },
                 
-                // 台灣特色里程碑
-                { childId, category: 'social', title: '會拱手作揖', ageMonths: 15, completed: false, description: '能模仿拱手作揖動作（過年習俗）' },
-                { childId, category: 'language', title: '會說「謝謝」', ageMonths: 18, completed: false, description: '會在適當時機說出「謝謝」' },
-                { childId, category: 'cognitive', title: '認識至少兩種水果', ageMonths: 20, completed: false, description: '能認出芭樂、香蕉等台灣常見水果' },
-                { childId, category: 'social', title: '會脫鞋進門', ageMonths: 24, completed: false, description: '知道進門前需要脫鞋' },
-                { childId, category: 'language', title: '會唱兒歌', ageMonths: 26, completed: false, description: '能跟著唱台灣童謠或兒歌' },
-                { childId, category: 'cognitive', title: '認識自己姓氏', ageMonths: 30, completed: false, description: '知道自己的姓氏' }
+                // 情緒發展里程碑 (emotional)
+                { childId, category: 'emotional', title: '表達不適', ageMonths: 0, completed: false, description: '能用哭聲表達不適或需求' },
+                { childId, category: 'emotional', title: '情緒分化', ageMonths: 3, completed: false, description: '表現出不同情緒如高興、生氣' },
+                { childId, category: 'emotional', title: '自我安撫', ageMonths: 6, completed: false, description: '能用吸手指等方式自我安撫' },
+                { childId, category: 'emotional', title: '分離焦慮', ageMonths: 8, completed: false, description: '父母離開時表現出不安' },
+                { childId, category: 'emotional', title: '情緒參照', ageMonths: 10, completed: false, description: '通過觀察成人反應調整自己行為' },
+                { childId, category: 'emotional', title: '情緒表達', ageMonths: 15, completed: false, description: '能明確表達自己的情緒需求' },
+                { childId, category: 'emotional', title: '情緒辨識', ageMonths: 24, completed: false, description: '能辨認他人的基本情緒' },
+                { childId, category: 'emotional', title: '情緒控制', ageMonths: 36, completed: false, description: '開始學習控制情緒表達' },
+                
+                // 自理能力里程碑 (self-help)
+                { childId, category: 'self-help', title: '吸允', ageMonths: 0, completed: false, description: '能有效吸允' },
+                { childId, category: 'self-help', title: '自己拿物', ageMonths: 5, completed: false, description: '能自己抓取小物品' },
+                { childId, category: 'self-help', title: '用杯喝水', ageMonths: 9, completed: false, description: '能扶著杯子喝水' },
+                { childId, category: 'self-help', title: '用湯匙', ageMonths: 12, completed: false, description: '能嘗試用湯匙進食' },
+                { childId, category: 'self-help', title: '脫簡單衣物', ageMonths: 18, completed: false, description: '能脫掉簡單的衣物如襪子' },
+                { childId, category: 'self-help', title: '便盆訓練', ageMonths: 24, completed: false, description: '開始進行便盆訓練，表現出上廁所意識' },
+                { childId, category: 'self-help', title: '自己穿衣', ageMonths: 30, completed: false, description: '能穿上簡單的衣物' },
+                { childId, category: 'self-help', title: '如廁自理', ageMonths: 36, completed: false, description: '大部分時間能自己如廁' }
             ];
             
             const transaction = db.transaction(['milestones'], 'readwrite');
@@ -1185,18 +1238,24 @@
                     childSelector.innerHTML = '';
                     
                     children.forEach(child => {
-                        const initial = child.name.charAt(0);
-                        const backgroundColor = child.gender === '男' ? 'var(--primary-light)' : 
-                                              child.gender === '女' ? 'var(--secondary-light)' : 'var(--tertiary-light)';
-                        const textColor = child.gender === '男' ? 'var(--primary)' : 
-                                        child.gender === '女' ? 'var(--secondary)' : 'var(--tertiary)';
-                        
                         const childAvatar = document.createElement('div');
                         childAvatar.className = 'child-avatar';
                         childAvatar.dataset.childId = child.id;
-                        childAvatar.style.backgroundColor = backgroundColor;
-                        childAvatar.style.color = textColor;
-                        childAvatar.textContent = initial;
+                        
+                        if (child.avatar) {
+                            childAvatar.innerHTML = `<img src="${child.avatar}" alt="${child.name}">`;
+                        } else {
+                            // 如果沒有頭像，顯示首字母
+                            const initial = child.name.charAt(0);
+                            const backgroundColor = child.gender === '男' ? 'var(--primary-light)' : 
+                                                  child.gender === '女' ? 'var(--secondary-light)' : 'var(--tertiary-light)';
+                            const textColor = child.gender === '男' ? 'var(--primary)' : 
+                                            child.gender === '女' ? 'var(--secondary)' : 'var(--tertiary)';
+                            
+                            childAvatar.style.backgroundColor = backgroundColor;
+                            childAvatar.style.color = textColor;
+                            childAvatar.textContent = initial;
+                        }
                         
                         if (!currentChildId) {
                             currentChildId = child.id;
@@ -1444,7 +1503,7 @@
             tomorrow.setDate(tomorrow.getDate() + 1);
             
             // 獲取所有類型的紀錄
-            const recordTypes = ['feeding', 'sleep', 'diaper', 'activities', 'health'];
+            const recordTypes = ['feeding', 'sleep', 'diaper', 'activities', 'health', 'interactions'];
             let allRecords = [];
             let loadedTypesCount = 0;
             
@@ -1549,12 +1608,40 @@
                                             `;
                                         }
                                         break;
+                                    case 'interactions':
+                                        recordIcon = '👨‍👩‍👧';
+                                        
+                                        // 情緒表情
+                                        let moodEmoji = '';
+                                        if (record.mood === 'happy') {
+                                            moodEmoji = '😄';
+                                        } else if (record.mood === 'calm') {
+                                            moodEmoji = '😊';
+                                        } else if (record.mood === 'sad') {
+                                            moodEmoji = '😢';
+                                        } else if (record.mood === 'angry') {
+                                            moodEmoji = '😠';
+                                        }
+                                        
+                                        recordContent = `
+                                            <div class="record-details">
+                                                <span class="record-tag">${moodEmoji} ${record.mood === 'happy' ? '開心' : 
+                                                                              record.mood === 'calm' ? '平靜' : 
+                                                                              record.mood === 'sad' ? '難過' : '生氣'}</span>
+                                            </div>
+                                            ${record.note ? `<div style="font-size: 0.9rem; margin-top: 4px;">${record.note}</div>` : ''}
+                                            ${record.photoData ? `
+                                                <div class="interaction-photo">
+                                                    <img src="${record.photoData}" alt="互動照片">
+                                                </div>` : ''}
+                                        `;
+                                        break;
                                 }
                                 
                                 recordItem.innerHTML = `
-                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                    <div style="display: flex; align-items: flex-start; gap: 10px; width: 100%;">
                                         <div style="font-size: 1.2rem;">${recordIcon}</div>
-                                        <div class="record-main">
+                                        <div class="record-main" style="flex-grow: 1;">
                                             <div class="record-time">${formatTime(new Date(record.timestamp))}</div>
                                             ${recordContent}
                                         </div>
@@ -1628,8 +1715,8 @@
                                     <div>${milestone.title}</div>
                                     <div class="milestone-age">${milestone.ageMonths} 個月</div>
                                 </div>
-                                <div class="milestone-description">${milestone.description}</div>
-                                <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 6px;">${timeDescription}</div>
+                                <div style="font-size: 0.8rem; color: var(--text-light);">${timeDescription}</div>
+                                ${milestone.description ? `<div style="font-size: 0.85rem; margin-top: 6px;">${milestone.description}</div>` : ''}
                             `;
                             
                             // 點擊里程碑切換完成狀態
@@ -1676,7 +1763,6 @@
                 }
             };
         }
-
         // 載入照護頁面
         function loadCarePage() {
             const mainContent = document.getElementById('main-content');
@@ -2503,7 +2589,6 @@
             
             openModal();
         }
-
         // 載入發展頁面
         function loadDevelopmentPage() {
             const mainContent = document.getElementById('main-content');
@@ -2526,6 +2611,8 @@
                                 <div class="tab" data-category="language">語言</div>
                                 <div class="tab" data-category="social">社交</div>
                                 <div class="tab" data-category="cognitive">認知</div>
+                                <div class="tab" data-category="emotional">情緒</div>
+                                <div class="tab" data-category="self-help">自理</div>
                             </div>
                             
                             <div id="milestones-list">
@@ -2558,10 +2645,6 @@
                         <div class="card-content">
                             <div id="interactions-list">
                                 <div class="loader"></div>
-                            </div>
-                            
-                            <div class="photo-grid" id="interaction-photos">
-                                <!-- 照片會動態加入 -->
                             </div>
                         </div>
                     </div>
@@ -2649,7 +2732,9 @@
                             'motor': '動作能力',
                             'language': '語言能力',
                             'social': '社交能力',
-                            'cognitive': '認知能力'
+                            'cognitive': '認知能力',
+                            'emotional': '情緒發展',
+                            'self-help': '自理能力'
                         };
                         
                         // 如果是全部分類，先分組
@@ -2701,7 +2786,7 @@
                     <div>${milestone.title}</div>
                     <div class="milestone-age">${milestone.ageMonths} 個月</div>
                 </div>
-                <div class="milestone-description">${milestone.description || ''}</div>
+                ${milestone.description ? `<div style="font-size: 0.85rem; margin-top: 6px;">${milestone.description}</div>` : ''}
                 ${milestone.completed ? '<div class="checkmark">✓ 已完成</div>' : ''}
             `;
             
@@ -2760,7 +2845,6 @@
         // 載入親子互動記錄
         function loadInteractions() {
             const interactionsListElement = document.getElementById('interactions-list');
-            const interactionPhotosElement = document.getElementById('interaction-photos');
             
             getRecentRecords('interactions', 20, (records) => {
                 if (records.length === 0) {
@@ -2769,208 +2853,55 @@
                             <div class="empty-text">尚無親子互動紀錄</div>
                         </div>
                     `;
-                    interactionPhotosElement.style.display = 'none';
                 } else {
                     interactionsListElement.innerHTML = '';
                     
-                    // 先顯示文字記錄
+                    // 顯示所有互動記錄（含照片）
                     records.forEach(interaction => {
-                        if (!interaction.hasPhoto) {
-                            const interactionItem = document.createElement('div');
-                            interactionItem.className = 'record-item';
-                            
-                            // 情緒表情
-                            let moodEmoji = '';
-                            if (interaction.mood === 'happy') {
-                                moodEmoji = '😄';
-                            } else if (interaction.mood === 'calm') {
-                                moodEmoji = '😊';
-                            } else if (interaction.mood === 'sad') {
-                                moodEmoji = '😢';
-                            } else if (interaction.mood === 'angry') {
-                                moodEmoji = '😠';
-                            }
-                            
-                            interactionItem.innerHTML = `
-                                <div class="record-main">
-                                    <div class="record-time">${formatDateTime(new Date(interaction.timestamp))}</div>
-                                    <div class="record-details">
-                                        <span class="record-tag">${moodEmoji} ${interaction.mood === 'happy' ? '開心' : 
-                                                                              interaction.mood === 'calm' ? '平靜' : 
-                                                                              interaction.mood === 'sad' ? '難過' : '生氣'}</span>
-                                    </div>
-                                    ${interaction.note ? `<div style="font-size: 0.9rem; margin-top: 4px;">${interaction.note}</div>` : ''}
-                                </div>
-                                <button class="btn-icon" data-id="${interaction.id}">×</button>
-                            `;
-                            
-                            // 綁定刪除按鈕
-                            interactionItem.querySelector('.btn-icon').addEventListener('click', (e) => {
-                                e.stopPropagation();
-                                deleteInteractionWithPhoto(interaction.id);
-                            });
-                            
-                            interactionsListElement.appendChild(interactionItem);
+                        const interactionItem = document.createElement('div');
+                        interactionItem.className = 'record-item';
+                        
+                        // 情緒表情
+                        let moodEmoji = '';
+                        if (interaction.mood === 'happy') {
+                            moodEmoji = '😄';
+                        } else if (interaction.mood === 'calm') {
+                            moodEmoji = '😊';
+                        } else if (interaction.mood === 'sad') {
+                            moodEmoji = '😢';
+                        } else if (interaction.mood === 'angry') {
+                            moodEmoji = '😠';
                         }
-                    });
-                    
-                    // 判斷是否有照片記錄
-                    const photoRecords = records.filter(r => r.hasPhoto);
-                    
-                    if (photoRecords.length > 0) {
-                        // 顯示照片標題
-                        interactionPhotosElement.style.display = 'grid';
-                        interactionPhotosElement.innerHTML = '<div class="loader" style="grid-column: 1 / -1;"></div>';
                         
-                        // 載入照片
-                        const photoIds = photoRecords.map(r => r.id);
-                        loadInteractionPhotos(photoIds);
-                    } else {
-                        interactionPhotosElement.style.display = 'none';
-                    }
-                }
-            });
-        }
-
-        // 載入互動照片
-        function loadInteractionPhotos(interactionIds) {
-            const interactionPhotosElement = document.getElementById('interaction-photos');
-            
-            // 清空照片區域
-            interactionPhotosElement.innerHTML = '';
-            
-            // 獲取照片資料
-            const transaction = db.transaction(['photos'], 'readonly');
-            const photosStore = transaction.objectStore('photos');
-            const index = photosStore.index('interactionId');
-            
-            let loadedPhotosCount = 0;
-            
-            interactionIds.forEach(interactionId => {
-                const request = index.openCursor(IDBKeyRange.only(interactionId));
-                
-                request.onsuccess = (event) => {
-                    const cursor = event.target.result;
-                    
-                    if (cursor) {
-                        const photo = cursor.value;
-                        
-                        const photoItem = document.createElement('div');
-                        photoItem.className = 'photo-item';
-                        photoItem.dataset.id = photo.id;
-                        
-                        photoItem.innerHTML = `
-                            <img src="${photo.photoData}" alt="親子互動照片">
-                            <div class="photo-date">${formatDate(new Date(photo.timestamp))}</div>
+                        interactionItem.innerHTML = `
+                            <div class="record-main">
+                                <div class="record-time">${formatDateTime(new Date(interaction.timestamp))}</div>
+                                <div class="record-details">
+                                    <span class="record-tag">${moodEmoji} ${interaction.mood === 'happy' ? '開心' : 
+                                                                          interaction.mood === 'calm' ? '平靜' : 
+                                                                          interaction.mood === 'sad' ? '難過' : '生氣'}</span>
+                                </div>
+                                ${interaction.note ? `<div style="font-size: 0.9rem; margin-top: 4px;">${interaction.note}</div>` : ''}
+                                ${interaction.photoData ? `
+                                    <div class="interaction-photo">
+                                        <img src="${interaction.photoData}" alt="互動照片">
+                                    </div>` : ''}
+                            </div>
+                            <button class="btn-icon" data-id="${interaction.id}">×</button>
                         `;
                         
-                        // 點擊查看大圖
-                        photoItem.addEventListener('click', () => {
-                            showPhotoModal(photo);
+                        // 綁定刪除按鈕
+                        interactionItem.querySelector('.btn-icon').addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            deleteRecord('interactions', interaction.id, () => {
+                                loadInteractions();
+                            });
                         });
                         
-                        interactionPhotosElement.appendChild(photoItem);
-                        
-                        loadedPhotosCount++;
-                        cursor.continue();
-                    } else {
-                        // 如果沒有照片，顯示提示
-                        if (loadedPhotosCount === 0) {
-                            interactionPhotosElement.innerHTML = `
-                                <div class="empty-state" style="grid-column: 1 / -1;">
-                                    <div class="empty-text">尚無照片</div>
-                                </div>
-                            `;
-                        }
-                    }
-                };
-            });
-        }
-
-        // 顯示照片大圖模態框
-        function showPhotoModal(photo) {
-            const modalTitle = document.getElementById('modal-title');
-            const modalBody = document.getElementById('modal-body');
-            
-            modalTitle.textContent = formatDate(new Date(photo.timestamp));
-            modalBody.innerHTML = `
-                <div style="text-align: center;">
-                    <img src="${photo.photoData}" alt="親子互動照片" style="max-width: 100%; max-height: 70vh; border-radius: 8px;">
-                    <div style="margin-top: 16px;">
-                        <button class="btn" id="delete-photo-btn" style="background-color: #ff6b6b;">刪除照片</button>
-                    </div>
-                </div>
-            `;
-            
-            // 綁定刪除按鈕
-            document.getElementById('delete-photo-btn').addEventListener('click', () => {
-                if (confirm('確定要刪除此照片嗎？')) {
-                    deletePhoto(photo.id, photo.interactionId);
-                }
-            });
-            
-            openModal();
-        }
-
-        // 刪除照片
-        function deletePhoto(photoId, interactionId) {
-            // 刪除照片記錄
-            const transaction = db.transaction(['photos', 'interactions'], 'readwrite');
-            const photosStore = transaction.objectStore('photos');
-            const interactionsStore = transaction.objectStore('interactions');
-            
-            // 刪除照片
-            photosStore.delete(photoId);
-            
-            // 更新互動記錄，設置 hasPhoto 為 false
-            const request = interactionsStore.get(interactionId);
-            request.onsuccess = () => {
-                const interaction = request.result;
-                interaction.hasPhoto = false;
-                interactionsStore.put(interaction);
-            };
-            
-            transaction.oncomplete = () => {
-                showToast('成功刪除照片');
-                closeModal();
-                loadInteractions();
-            };
-        }
-
-        // 刪除互動及照片
-        function deleteInteractionWithPhoto(interactionId) {
-            // 先檢查是否有關聯照片
-            const transaction = db.transaction(['photos'], 'readonly');
-            const photosStore = transaction.objectStore('photos');
-            const index = photosStore.index('interactionId');
-            const request = index.openCursor(IDBKeyRange.only(interactionId));
-            
-            request.onsuccess = (event) => {
-                const cursor = event.target.result;
-                
-                if (cursor) {
-                    // 有照片，一併刪除
-                    const photoId = cursor.value.id;
-                    
-                    const deleteTransaction = db.transaction(['photos', 'interactions'], 'readwrite');
-                    const photoStore = deleteTransaction.objectStore('photos');
-                    const interactionStore = deleteTransaction.objectStore('interactions');
-                    
-                    photoStore.delete(photoId);
-                    interactionStore.delete(interactionId);
-                    
-                    deleteTransaction.oncomplete = () => {
-                        showToast('成功刪除親子互動及照片');
-                        loadInteractions();
-                        closeModal();
-                    };
-                } else {
-                    // 無照片，只刪除互動記錄
-                    deleteRecord('interactions', interactionId, () => {
-                        loadInteractions();
+                        interactionsListElement.appendChild(interactionItem);
                     });
                 }
-            };
+            });
         }
 
         // 顯示新增活動記錄彈窗
@@ -3080,10 +3011,11 @@
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">上傳照片</label>
-                        <input type="file" class="form-control" id="interaction-photo" accept="image/*">
-                        <div id="photo-preview" style="margin-top: 8px; display: none;">
-                            <img id="preview-image" style="max-width: 100%; max-height: 200px; border-radius: 8px;">
+                        <label class="form-label">記錄照片</label>
+                        <input type="file" id="interaction-photo" class="file-input" accept="image/*">
+                        <label for="interaction-photo" class="file-label">選擇照片</label>
+                        <div id="photo-preview" class="image-preview" style="display: none;">
+                            <img id="preview-image" src="" alt="預覽">
                         </div>
                     </div>
                     
@@ -3117,16 +3049,15 @@
             const previewImage = document.getElementById('preview-image');
             
             photoInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
+                if (e.target.files && e.target.files[0]) {
                     const reader = new FileReader();
+                    
                     reader.onload = (e) => {
                         previewImage.src = e.target.result;
                         photoPreview.style.display = 'block';
                     };
-                    reader.readAsDataURL(file);
-                } else {
-                    photoPreview.style.display = 'none';
+                    
+                    reader.readAsDataURL(e.target.files[0]);
                 }
             });
             
@@ -3137,7 +3068,6 @@
                 
                 const time = document.getElementById('interaction-time').value;
                 const note = document.getElementById('interaction-note').value.trim();
-                const photoFile = document.getElementById('interaction-photo').files[0];
                 
                 if (!time) {
                     showToast('請選擇時間');
@@ -3149,61 +3079,20 @@
                     childId: currentChildId,
                     timestamp: new Date(time).toISOString(),
                     mood: selectedMood,
-                    hasPhoto: !!photoFile,
-                    note: note
+                    note: note,
+                    photoData: previewImage.src || null
                 };
                 
-                // 先儲存互動記錄，再處理照片
-                addInteractionWithPhoto(interactionData, photoFile);
+                addRecord('interactions', interactionData, () => {
+                    showToast('成功新增親子互動');
+                    closeModal();
+                    
+                    // 重新載入親子互動記錄
+                    loadInteractions();
+                });
             });
             
             openModal();
-        }
-
-        // 添加互動和照片記錄
-        function addInteractionWithPhoto(interactionData, photoFile) {
-            const transaction = db.transaction(['interactions'], 'readwrite');
-            const interactionsStore = transaction.objectStore('interactions');
-            
-            // 先儲存互動記錄
-            const request = interactionsStore.add(interactionData);
-            
-            request.onsuccess = (event) => {
-                const interactionId = event.target.result;
-                
-                // 如果有照片，則儲存照片
-                if (photoFile) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const photoData = {
-                            interactionId: interactionId,
-                            childId: currentChildId,
-                            photoData: e.target.result,
-                            timestamp: interactionData.timestamp
-                        };
-                        
-                        // 儲存照片
-                        const photoTransaction = db.transaction(['photos'], 'readwrite');
-                        const photosStore = photoTransaction.objectStore('photos');
-                        photosStore.add(photoData);
-                        
-                        photoTransaction.oncomplete = () => {
-                            showToast('成功新增親子互動及照片');
-                            closeModal();
-                            loadInteractions();
-                        };
-                    };
-                    reader.readAsDataURL(photoFile);
-                } else {
-                    showToast('成功新增親子互動');
-                    closeModal();
-                    loadInteractions();
-                }
-            };
-            
-            request.onerror = () => {
-                showToast('新增親子互動失敗');
-            };
         }
 
         // 載入健康頁面
@@ -3836,7 +3725,6 @@
             
             openModal();
         }
-
         // 載入設定頁面
         function loadSettingsPage() {
             const mainContent = document.getElementById('main-content');
@@ -3929,7 +3817,35 @@
             
             // 綁定還原按鈕
             document.getElementById('restore-btn').addEventListener('click', () => {
-                showRestoreModal();
+                // 創建一個隱藏的文件輸入元素
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = '.json';
+                fileInput.style.display = 'none';
+                document.body.appendChild(fileInput);
+                
+                fileInput.addEventListener('change', (e) => {
+                    if (e.target.files && e.target.files[0]) {
+                        const file = e.target.files[0];
+                        const reader = new FileReader();
+                        
+                        reader.onload = (e) => {
+                            try {
+                                const backup = JSON.parse(e.target.result);
+                                restoreData(backup);
+                            } catch (error) {
+                                showToast('備份檔案格式錯誤');
+                                console.error('還原資料錯誤:', error);
+                            }
+                        };
+                        
+                        reader.readAsText(file);
+                    }
+                    
+                    document.body.removeChild(fileInput);
+                });
+                
+                fileInput.click();
             });
             
             // 綁定清除資料按鈕
@@ -3974,10 +3890,18 @@
                         const childItem = document.createElement('div');
                         childItem.className = 'settings-item';
                         
+                        let avatarHTML = '';
+                        if (child.avatar) {
+                            avatarHTML = `<img src="${child.avatar}" alt="${child.name}" style="width: 40px; height: 40px; border-radius: 50%; margin-right: 10px;">`;
+                        }
+                        
                         childItem.innerHTML = `
-                            <div>
-                                <div>${child.name}</div>
-                                <div style="font-size: 0.8rem; color: var(--text-light);">${ageString} (${formatDate(birthDate)})</div>
+                            <div style="display: flex; align-items: center;">
+                                ${avatarHTML}
+                                <div>
+                                    <div>${child.name}</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-light);">${ageString} (${formatDate(birthDate)})</div>
+                                </div>
                             </div>
                             <button class="btn-sm" data-id="${child.id}">編輯</button>
                         `;
@@ -4035,11 +3959,38 @@
                         <input type="date" class="form-control" id="child-birthdate" value="${child.birthdate}" required>
                     </div>
                     
+                    <div class="form-group">
+                        <label class="form-label">更新頭像</label>
+                        <input type="file" id="child-avatar" class="file-input" accept="image/*">
+                        <label for="child-avatar" class="file-label">選擇照片</label>
+                        <div id="avatar-preview" class="image-preview" style="display: ${child.avatar ? 'block' : 'none'};">
+                            <img id="avatar-image" src="${child.avatar || ''}" alt="預覽">
+                        </div>
+                    </div>
+                    
                     <button type="submit" class="btn" style="width: 100%;">儲存</button>
                     
                     <button type="button" class="btn" style="width: 100%; margin-top: 16px; background-color: #ff6b6b;" id="delete-child-btn">刪除寶寶資料</button>
                 </form>
             `;
+            
+            // 頭像預覽
+            const avatarInput = document.getElementById('child-avatar');
+            const avatarPreview = document.getElementById('avatar-preview');
+            const avatarImage = document.getElementById('avatar-image');
+            
+            avatarInput.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    const reader = new FileReader();
+                    
+                    reader.onload = (e) => {
+                        avatarImage.src = e.target.result;
+                        avatarPreview.style.display = 'block';
+                    };
+                    
+                    reader.readAsDataURL(e.target.files[0]);
+                }
+            });
             
             // 性別選擇切換
             const genderOptions = modalBody.querySelectorAll('#child-gender .toggle-option');
@@ -4071,7 +4022,8 @@
                     ...child,
                     name: name,
                     gender: selectedGender,
-                    birthdate: birthdate
+                    birthdate: birthdate,
+                    avatar: avatarImage.src
                 };
                 
                 updateChild(updatedChild);
@@ -4139,38 +4091,23 @@
 
         // 刪除與孩子相關的所有記錄
         function deleteChildRecords(childId, callback) {
-            const storeNames = ['feeding', 'sleep', 'diaper', 'activities', 'milestones', 'health', 'interactions', 'photos'];
+            const storeNames = ['feeding', 'sleep', 'diaper', 'activities', 'milestones', 'health', 'interactions'];
             let completed = 0;
             
             storeNames.forEach(storeName => {
                 const transaction = db.transaction([storeName], 'readwrite');
                 const store = transaction.objectStore(storeName);
+                const index = store.index('childId');
+                const request = index.openCursor(IDBKeyRange.only(childId));
                 
-                if (storeName === 'photos') {
-                    const index = store.index('childId');
-                    const request = index.openCursor(IDBKeyRange.only(childId));
+                request.onsuccess = (event) => {
+                    const cursor = event.target.result;
                     
-                    request.onsuccess = (event) => {
-                        const cursor = event.target.result;
-                        
-                        if (cursor) {
-                            store.delete(cursor.primaryKey);
-                            cursor.continue();
-                        }
-                    };
-                } else {
-                    const index = store.index('childId');
-                    const request = index.openCursor(IDBKeyRange.only(childId));
-                    
-                    request.onsuccess = (event) => {
-                        const cursor = event.target.result;
-                        
-                        if (cursor) {
-                            store.delete(cursor.primaryKey);
-                            cursor.continue();
-                        }
-                    };
-                }
+                    if (cursor) {
+                        store.delete(cursor.primaryKey);
+                        cursor.continue();
+                    }
+                };
                 
                 transaction.oncomplete = () => {
                     completed++;
@@ -4180,52 +4117,6 @@
                     }
                 };
             });
-        }
-
-        // 顯示數據還原彈窗
-        function showRestoreModal() {
-            const modalTitle = document.getElementById('modal-title');
-            const modalBody = document.getElementById('modal-body');
-            
-            modalTitle.textContent = '還原資料';
-            modalBody.innerHTML = `
-                <div class="form-group">
-                    <label class="form-label">請選擇備份檔案</label>
-                    <input type="file" class="form-control" id="restore-file" accept=".json">
-                </div>
-                <p style="margin-bottom: 16px; font-size: 0.9rem; color: var(--text-light);">注意：還原資料將覆蓋目前所有資料，無法復原。</p>
-                <button class="btn" id="start-restore-btn" style="width: 100%;" disabled>開始還原</button>
-            `;
-            
-            // 檢查是否選擇了檔案
-            const fileInput = document.getElementById('restore-file');
-            const restoreButton = document.getElementById('start-restore-btn');
-            
-            fileInput.addEventListener('change', () => {
-                restoreButton.disabled = !fileInput.files.length;
-            });
-            
-            // 綁定還原按鈕
-            restoreButton.addEventListener('click', () => {
-                const file = fileInput.files[0];
-                
-                if (file) {
-                    const reader = new FileReader();
-                    
-                    reader.onload = (e) => {
-                        try {
-                            const backupData = JSON.parse(e.target.result);
-                            restoreData(backupData);
-                        } catch (error) {
-                            showToast('無效的備份檔案');
-                        }
-                    };
-                    
-                    reader.readAsText(file);
-                }
-            });
-            
-            openModal();
         }
 
         // 備份資料
@@ -4238,8 +4129,7 @@
                 milestones: [],
                 activities: [],
                 health: [],
-                interactions: [],
-                photos: []
+                interactions: []
             };
             
             // 保存所有數據表
@@ -4333,20 +4223,9 @@
                 checkCompletion();
             };
             
-            // 獲取照片记录
-            const transaction9 = db.transaction(['photos'], 'readonly');
-            const photosStore = transaction9.objectStore('photos');
-            const request9 = photosStore.getAll();
-            
-            request9.onsuccess = () => {
-                backup.photos = request9.result;
-                storesCompleted++;
-                checkCompletion();
-            };
-            
             // 檢查是否完成所有數據表的備份
             function checkCompletion() {
-                if (storesCompleted === 9) {
+                if (storesCompleted === 8) {
                     // 所有數據表都已備份
                     const backupJson = JSON.stringify(backup);
                     const blob = new Blob([backupJson], { type: 'application/json' });
@@ -4366,52 +4245,65 @@
         }
 
         // 還原資料
-        function restoreData(backupData) {
-            // 清除現有資料
-            const clearRequest = indexedDB.deleteDatabase(DB_NAME);
+        function restoreData(backup) {
+            // 確認備份資料包含所有必要的表格
+            const requiredTables = ['children', 'feeding', 'sleep', 'diaper', 'milestones', 'activities', 'health', 'interactions'];
             
-            clearRequest.onsuccess = () => {
-                // 重新初始化資料庫
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
+            for (const table of requiredTables) {
+                if (!backup[table] || !Array.isArray(backup[table])) {
+                    showToast('備份檔案格式錯誤');
+                    return;
+                }
+            }
+            
+            // 確認用戶真的要還原
+            if (!confirm('還原將會覆蓋所有現有資料，確定要繼續嗎？')) {
+                return;
+            }
+            
+            // 關閉當前資料庫連接
+            db.close();
+            
+            // 刪除資料庫
+            const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
+            
+            deleteRequest.onsuccess = () => {
+                // 重新打開資料庫
+                const openRequest = indexedDB.open(DB_NAME, DB_VERSION);
                 
-                request.onupgradeneeded = (event) => {
+                openRequest.onupgradeneeded = (event) => {
                     const db = event.target.result;
                     
-                    // 孩子資料表
+                    // 創建所有表格
                     if (!db.objectStoreNames.contains('children')) {
                         const childrenStore = db.createObjectStore('children', { keyPath: 'id' });
                         childrenStore.createIndex('name', 'name', { unique: false });
                     }
                     
-                    // 餵食紀錄表
                     if (!db.objectStoreNames.contains('feeding')) {
                         const feedingStore = db.createObjectStore('feeding', { keyPath: 'id', autoIncrement: true });
                         feedingStore.createIndex('childId', 'childId', { unique: false });
                         feedingStore.createIndex('timestamp', 'timestamp', { unique: false });
                     }
                     
-                    // 睡眠紀錄表
                     if (!db.objectStoreNames.contains('sleep')) {
                         const sleepStore = db.createObjectStore('sleep', { keyPath: 'id', autoIncrement: true });
                         sleepStore.createIndex('childId', 'childId', { unique: false });
                         sleepStore.createIndex('timestamp', 'timestamp', { unique: false });
                     }
                     
-                    // 尿布紀錄表
                     if (!db.objectStoreNames.contains('diaper')) {
                         const diaperStore = db.createObjectStore('diaper', { keyPath: 'id', autoIncrement: true });
                         diaperStore.createIndex('childId', 'childId', { unique: false });
                         diaperStore.createIndex('timestamp', 'timestamp', { unique: false });
                     }
                     
-                    // 發展里程碑表
                     if (!db.objectStoreNames.contains('milestones')) {
                         const milestonesStore = db.createObjectStore('milestones', { keyPath: 'id', autoIncrement: true });
                         milestonesStore.createIndex('childId', 'childId', { unique: false });
                         milestonesStore.createIndex('category', 'category', { unique: false });
                     }
                     
-                    // 活動紀錄表
                     if (!db.objectStoreNames.contains('activities')) {
                         const activitiesStore = db.createObjectStore('activities', { keyPath: 'id', autoIncrement: true });
                         activitiesStore.createIndex('childId', 'childId', { unique: false });
@@ -4419,7 +4311,6 @@
                         activitiesStore.createIndex('type', 'type', { unique: false });
                     }
                     
-                    // 健康紀錄表
                     if (!db.objectStoreNames.contains('health')) {
                         const healthStore = db.createObjectStore('health', { keyPath: 'id', autoIncrement: true });
                         healthStore.createIndex('childId', 'childId', { unique: false });
@@ -4427,57 +4318,82 @@
                         healthStore.createIndex('type', 'type', { unique: false });
                     }
                     
-                    // 親子互動表
                     if (!db.objectStoreNames.contains('interactions')) {
                         const interactionsStore = db.createObjectStore('interactions', { keyPath: 'id', autoIncrement: true });
                         interactionsStore.createIndex('childId', 'childId', { unique: false });
                         interactionsStore.createIndex('timestamp', 'timestamp', { unique: false });
-                        interactionsStore.createIndex('hasPhoto', 'hasPhoto', { unique: false });
-                    }
-                    
-                    // 照片儲存表
-                    if (!db.objectStoreNames.contains('photos')) {
-                        const photosStore = db.createObjectStore('photos', { keyPath: 'id', autoIncrement: true });
-                        photosStore.createIndex('interactionId', 'interactionId', { unique: false });
-                        photosStore.createIndex('childId', 'childId', { unique: false });
                     }
                 };
                 
-                request.onsuccess = (event) => {
-                    db = event.target.result;
+                openRequest.onsuccess = (event) => {
+                    const db = event.target.result;
                     
-                    // 還原資料
-                    restoreTable('children', backupData.children);
-                    restoreTable('feeding', backupData.feeding);
-                    restoreTable('sleep', backupData.sleep);
-                    restoreTable('diaper', backupData.diaper);
-                    restoreTable('milestones', backupData.milestones);
-                    restoreTable('activities', backupData.activities);
-                    restoreTable('health', backupData.health);
-                    restoreTable('interactions', backupData.interactions);
-                    restoreTable('photos', backupData.photos);
+                    // 恢復所有數據
+                    const transaction = db.transaction(requiredTables, 'readwrite');
                     
-                    showToast('資料還原成功，將重新載入應用程式');
-                    closeModal();
+                    // 恢復孩子資料
+                    const childrenStore = transaction.objectStore('children');
+                    backup.children.forEach(child => {
+                        childrenStore.add(child);
+                    });
                     
-                    // 重新載入頁面
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 2000);
+                    // 恢復餵食記錄
+                    const feedingStore = transaction.objectStore('feeding');
+                    backup.feeding.forEach(record => {
+                        feedingStore.add(record);
+                    });
+                    
+                    // 恢復睡眠記錄
+                    const sleepStore = transaction.objectStore('sleep');
+                    backup.sleep.forEach(record => {
+                        sleepStore.add(record);
+                    });
+                    
+                    // 恢復尿布記錄
+                    const diaperStore = transaction.objectStore('diaper');
+                    backup.diaper.forEach(record => {
+                        diaperStore.add(record);
+                    });
+                    
+                    // 恢復里程碑記錄
+                    const milestonesStore = transaction.objectStore('milestones');
+                    backup.milestones.forEach(record => {
+                        milestonesStore.add(record);
+                    });
+                    
+                    // 恢復活動記錄
+                    const activitiesStore = transaction.objectStore('activities');
+                    backup.activities.forEach(record => {
+                        activitiesStore.add(record);
+                    });
+                    
+                    // 恢復健康記錄
+                    const healthStore = transaction.objectStore('health');
+                    backup.health.forEach(record => {
+                        healthStore.add(record);
+                    });
+                    
+                    // 恢復親子互動記錄
+                    const interactionsStore = transaction.objectStore('interactions');
+                    backup.interactions.forEach(record => {
+                        interactionsStore.add(record);
+                    });
+                    
+                    transaction.oncomplete = () => {
+                        showToast('成功還原資料');
+                        
+                        // 重新載入頁面
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    };
+                    
+                    transaction.onerror = (event) => {
+                        showToast('還原資料失敗');
+                        console.error('還原資料錯誤:', event.target.error);
+                    };
                 };
             };
-        }
-
-        // 還原單一數據表
-        function restoreTable(tableName, data) {
-            if (!data || data.length === 0) return;
-            
-            const transaction = db.transaction([tableName], 'readwrite');
-            const store = transaction.objectStore(tableName);
-            
-            data.forEach(item => {
-                store.add(item);
-            });
         }
 
         // 清除所有資料
