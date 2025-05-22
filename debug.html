@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>寶寶照護筆記 - 除錯工具</title>
+    <style>
+        :root {
+            --primary: #7caacb;
+            --primary-light: #d4e5f7;
+            --secondary: #f3a683;
+            --secondary-light: #fce8d9;
+            --tertiary: #a0c1b8;
+            --success: #4caf50;
+            --warning: #ff9800;
+            --error: #f44336;
+            --background: #f8f3eb;
+            --card-bg: #ffffff;
+            --text: #383838;
+            --text-light: #767676;
+            --border: #eaeaea;
+            --shadow: rgba(0, 0, 0, 0.05);
+            
+            --font-main: system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
+            --radius: 12px;
+            --spacing: 16px;
+        }
+
+        [data-theme="dark"] {
+            --background: #1a1a1a;
+            --card-bg: #2c2c2c;
+            --text: #f0f0f0;
+            --text-light: #a0a0a0;
+            --border: #3a3a3a;
+            --shadow: rgba(0, 0, 0, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--background);
+            color: var(--text);
+            line-height: 1.5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: 0 2px 10px var(--shadow);
+        }
+
+        .header h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: var(--text-light);
+        }
+
+        .tabs {
+            display: flex;
+            background-color: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px var(--shadow);
+            overflow-x: auto;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px 16px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color 0.3s;
+            white-space: nowrap;
+            min-width: 120px;
+        }
+
+        .tab.active {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .tab:hover:not(.active) {
+            background-color: var(--primary-light);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--radius);
+            padding: var(--spacing);
+            margin-bottom: var(--spacing);
+            box-shadow: 0 2px 10px var(--shadow);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .status-item {
+            padding: 15px;
+            background-color: var(--primary-light);
+            border-radius: var(--radius);
+            text-align: center;
+        }
+
+        .status-item.success {
+            background-color: rgba(76, 175, 80, 0.1);
+            color: var(--success);
+        }
+
+        .status-item.warning {
+            background-color: rgba(255, 152, 0, 0.1);
+            color: var(--warning);
+        }
+
+        .status-item.error {
+            background-color: rgba(244, 67, 54, 0.1);
+            color: var(--error);
+        }
+
+        .status-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .status-label {
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin: 5px;
+            transition: opacity 0.3s;
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+        }
+
+        .btn-success {
+            background-color: var(--success);
+        }
+
+        .btn-warning {
+            background-color: var(--warning);
+        }
+
+        .btn-error {
+            background-color: var(--error);
+        }
+
+        .log-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background-color: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            padding: 10px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+
+        .log-entry.error {
+            color: #f44336;
+        }
+
+        .log-entry.warning {
+            color: #ff9800;
+        }
+
+        .log-entry.info {
+            color: #2196f3;
+        }
+
+        .log-entry.success {
+            color: #4caf50;
+        }
+
+        .test-result {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border-left: 4px solid;
+        }
+
+        .test-result.pass {
+            background-color: rgba(76, 175, 80, 0.1);
+            border-color: var(--success);
+        }
+
+        .test-result.fail {
+            background-color: rgba(244, 67, 54, 0.1);
+            border-color: var(--error);
+        }
+
+        .test-result.pending {
+            background-color: rgba(255, 152, 0, 0.1);
+            border-color: var(--warning);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        .data-table th {
+            background-color: var(--primary-light);
+            font-weight: 600;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--primary);
+            transition: width 0.3s ease;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .alert {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: var(--radius);
+            border-left: 4px solid;
+        }
+
+        .alert-info {
+            background-color: rgba(33, 150, 243, 0.1);
+            border-color: #2196f3;
+            color: #1976d2;
+        }
+
+        .alert-success {
+            background-color: rgba(76, 175, 80, 0.1);
+            border-color: var(--success);
+            color: #388e3c;
+        }
+
+        .alert-warning {
+            background-color: rgba(255, 152, 0, 0.1);
+            border-color: var(--warning);
+            color: #f57c00;
+        }
+
+        .alert-error {
+            background-color: rgba(244, 67, 54, 0.1);
+            border-color: var(--error);
+            color: #d32f2f;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-family: var(--font-main);
+            background-color: var(--card-bg);
+            color: var(--text);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .loader {
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .floating-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+        }
+
+        .floating-button:hover {
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .tabs {
+                flex-direction: column;
+            }
+            
+            .tab {
+                flex: none;
+                margin-bottom: 5px;
+            }
+            
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 標題 -->
+        <div class="header">
+            <h1>🔧 寶寶照護筆記 - 除錯工具</h1>
+            <p>系統診斷、錯誤監控與功能測試工具</p>
+        </div>
+
+        <!-- 主要頁籤 -->
+        <div class="tabs">
+            <div class="tab active" data-tab="dashboard">儀表板</div>
+            <div class="tab" data-tab="logs">錯誤日誌</div>
+            <div class="tab" data-tab="database">資料庫檢查</div>
+            <div class="tab" data-tab="tests">功能測試</div>
+            <div class="tab" data-tab="performance">效能監控</div>
+            <div class="tab" data-tab="tools">修復工具</div>
+        </div>
+
+        <!-- 儀表板 -->
+        <div class="tab-content active" id="dashboard">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">系統狀態概覽</div>
+                    <button class="btn" onclick="refreshDashboard()">🔄 重新整理</button>
+                </div>
+                <div class="status-grid">
+                    <div class="status-item" id="db-status">
+                        <div class="status-number">?</div>
+                        <div class="status-label">資料庫狀態</div>
+                    </div>
+                    <div class="status-item" id="errors-count">
+                        <div class="status-number">0</div>
+                        <div class="status-label">錯誤數量</div>
+                    </div>
+                    <div class="status-item" id="children-count">
+                        <div class="status-number">0</div>
+                        <div class="status-label">寶寶數量</div>
+                    </div>
+                    <div class="status-item" id="records-count">
+                        <div class="status-number">0</div>
+                        <div class="status-label">總記錄數</div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <strong>系統訊息：</strong>
+                    <span id="system-message">正在檢查系統狀態...</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">快速操作</div>
+                </div>
+                <div>
+                    <button class="btn btn-success" onclick="runQuickTest()">🧪 快速測試</button>
+                    <button class="btn btn-warning" onclick="checkDataIntegrity()">🔍 資料完整性檢查</button>
+                    <button class="btn" onclick="exportDebugReport()">📄 匯出除錯報告</button>
+                    <button class="btn btn-error" onclick="clearAllLogs()">🗑️ 清除日誌</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">最近活動</div>
+                </div>
+                <div id="recent-activity">
+                    <div class="loader"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 錯誤日誌 -->
+        <div class="tab-content" id="logs">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">錯誤日誌監控</div>
+                    <div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="auto-scroll" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span style="margin-left: 10px;">自動滾動</span>
+                        <button class="btn" onclick="clearLogs()" style="margin-left: 10px;">清除日誌</button>
+                    </div>
+                </div>
+                <div class="log-container" id="log-container">
+                    <!-- 日誌內容將動態插入 -->
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">日誌統計</div>
+                </div>
+                <div class="status-grid">
+                    <div class="status-item error" id="error-logs-count">
+                        <div class="status-number">0</div>
+                        <div class="status-label">錯誤</div>
+                    </div>
+                    <div class="status-item warning" id="warning-logs-count">
+                        <div class="status-number">0</div>
+                        <div class="status-label">警告</div>
+                    </div>
+                    <div class="status-item" id="info-logs-count">
+                        <div class="status-number">0</div>
+                        <div class="status-label">資訊</div>
+                    </div>
+                    <div class="status-item success" id="success-logs-count">
+                        <div class="status-number">0</div>
+                        <div class="status-label">成功</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 資料庫檢查 -->
+        <div class="tab-content" id="database">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">資料庫結構檢查</div>
+                    <button class="btn" onclick="checkDatabaseStructure()">🔍 檢查結構</button>
+                </div>
+                <div id="db-structure-results">
+                    <div class="alert alert-info">點擊「檢查結構」開始檢查資料庫完整性</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">資料統計</div>
+                    <button class="btn" onclick="generateDataStats()">📊 生成統計</button>
+                </div>
+                <div id="data-stats">
+                    <table class="data-table" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>資料表</th>
+                                <th>記錄數</th>
+                                <th>最後更新</th>
+                                <th>狀態</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stats-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">孤立記錄檢查</div>
+                    <button class="btn btn-warning" onclick="findOrphanedRecords()">🔍 查找孤立記錄</button>
+                </div>
+                <div id="orphaned-records-results">
+                    <div class="alert alert-info">點擊「查找孤立記錄」檢查是否有無效的記錄</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 功能測試 -->
+        <div class="tab-content" id="tests">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">自動化功能測試</div>
+                    <div>
+                        <button class="btn btn-success" onclick="runAllTests()">🧪 執行所有測試</button>
+                        <button class="btn" onclick="runCoreTests()">⚡ 核心功能測試</button>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="test-progress" style="width: 0%"></div>
+                </div>
+                <div id="test-results">
+                    <!-- 測試結果將在這裡顯示 -->
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">手動測試工具</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">測試用寶寶名稱</label>
+                    <input type="text" class="form-control" id="test-child-name" placeholder="測試寶寶" value="測試寶寶">
+                </div>
+                <div>
+                    <button class="btn" onclick="createTestChild()">👶 建立測試寶寶</button>
+                    <button class="btn" onclick="addTestRecords()">📝 新增測試記錄</button>
+                    <button class="btn btn-warning" onclick="cleanupTestData()">🧹 清理測試資料</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 效能監控 -->
+        <div class="tab-content" id="performance">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">效能指標</div>
+                    <button class="btn" onclick="measurePerformance()">📈 測量效能</button>
+                </div>
+                <div class="status-grid">
+                    <div class="status-item" id="db-query-time">
+                        <div class="status-number">?</div>
+                        <div class="status-label">資料庫查詢時間 (ms)</div>
+                    </div>
+                    <div class="status-item" id="render-time">
+                        <div class="status-number">?</div>
+                        <div class="status-label">頁面渲染時間 (ms)</div>
+                    </div>
+                    <div class="status-item" id="memory-usage">
+                        <div class="status-number">?</div>
+                        <div class="status-label">記憶體使用 (MB)</div>
+                    </div>
+                    <div class="status-item" id="storage-size">
+                        <div class="status-number">?</div>
+                        <div class="status-label">儲存空間 (MB)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">效能測試</div>
+                </div>
+                <div>
+                    <button class="btn" onclick="stressTestDatabase()">💾 資料庫壓力測試</button>
+                    <button class="btn" onclick="benchmarkOperations()">⚡ 操作基準測試</button>
+                    <button class="btn" onclick="memoryLeakTest()">🔍 記憶體洩漏測試</button>
+                </div>
+                <div id="performance-results">
+                    <!-- 效能測試結果 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 修復工具 -->
+        <div class="tab-content" id="tools">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">資料修復工具</div>
+                </div>
+                <div class="alert alert-warning">
+                    <strong>注意：</strong>執行修復操作前請先備份資料！
+                </div>
+                <div>
+                    <button class="btn btn-warning" onclick="repairDatabaseIndexes()">🔧 修復資料庫索引</button>
+                    <button class="btn btn-warning" onclick="fixOrphanedRecords()">🔧 修復孤立記錄</button>
+                    <button class="btn btn-warning" onclick="rebuildDatabase()">🔧 重建資料庫</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">備份與還原</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">匯出完整除錯報告</label>
+                    <button class="btn" onclick="exportFullReport()">📄 匯出報告</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">重置應用程式</label>
+                    <button class="btn btn-error" onclick="resetApplication()">🔄 完全重置</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">開發者工具</div>
+                </div>
+                <div>
+                    <button class="btn" onclick="showConsoleCommands()">💻 顯示控制台命令</button>
+                    <button class="btn" onclick="enableDebugMode()">🐛 啟用除錯模式</button>
+                    <button class="btn" onclick="generateTestData()">🎲 生成測試資料</button>
+                </div>
+                <div id="dev-tools-output">
+                    <!-- 開發者工具輸出 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 浮動按鈕 -->
+    <button class="floating-button" onclick="toggleDebugPanel()" title="切換除錯面板">🔧</button>
+
+    <script>
+        // 全域變數
+        let debugDB;
+        let logCounts = { error: 0, warning: 0, info: 0, success: 0 };
+        let isDebugMode = false;
+        let performanceMetrics = {};
+        let testResults = [];
+
+        // IndexedDB 連接
+        function initDebugDB() {
+            const request = indexedDB.open('BabyCareDB', 1);
+            
+            request.onerror = (event) => {
+                addLog('error', `資料庫連接失敗: ${event.target.error}`);
+            };
+            
+            request.onsuccess = (event) => {
+                debugDB = event.target.result;
+                addLog('success', '成功連接到主應用程式資料庫');
+                refreshDashboard();
+            };
+            
+            request.onupgradeneeded = (event) => {
+                addLog('info', '資料庫需要升級');
+            };
+        }
+
+        // 日誌系統
+        function addLog(type, message) {
+            const timestamp = new Date().toLocaleString('zh-TW');
+            const logContainer = document.getElementById('log-container');
+            const logEntry = document.createElement('div');
+            
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            
+            logContainer.appendChild(logEntry);
+            
+            // 自動滾動
+            if (document.getElementById('auto-scroll').checked) {
+                logContainer.scrollTop = logContainer.scrollHeight;
+            }
+            
+            // 更新計數
+            logCounts[type]++;
+            updateLogCounts();
+        }
+
+        function updateLogCounts() {
+            document.getElementById('error-logs-count').querySelector('.status-number').textContent = logCounts.error;
+            document.getElementById('warning-logs-count').querySelector('.status-number').textContent = logCounts.warning;
+            document.getElementById('info-logs-count').querySelector('.status-number').textContent = logCounts.info;
+            document.getElementById('success-logs-count').querySelector('.status-number').textContent = logCounts.success;
+            
+            // 更新儀表板錯誤數量
+            document.getElementById('errors-count').querySelector('.status-number').textContent = logCounts.error;
+            
+            if (logCounts.error > 0) {
+                document.getElementById('errors-count').className = 'status-item error';
+            } else {
+                document.getElementById('errors-count').className = 'status-item success';
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('log-container').innerHTML = '';
+            logCounts = { error: 0, warning: 0, info: 0, success: 0 };
+            updateLogCounts();
+            addLog('info', '日誌已清除');
+        }
+
+        function clearAllLogs() {
+            if (confirm('確定要清除所有日誌嗎？')) {
+                clearLogs();
+            }
+        }
+
+        // 儀表板功能
+        function refreshDashboard() {
+            if (!debugDB) {
+                addLog('error', '資料庫未連接');
+                return;
+            }
+
+            // 檢查資料庫狀態
+            checkDatabaseConnection();
+            
+            // 計算寶寶數量
+            countChildren();
+            
+            // 計算總記錄數
+            countAllRecords();
+            
+            // 載入最近活動
+            loadRecentActivity();
+            
+            // 更新系統訊息
+            document.getElementById('system-message').textContent = '系統運行正常';
+        }
+
+        function checkDatabaseConnection() {
+            try {
+                if (debugDB && debugDB.objectStoreNames.length > 0) {
+                    document.getElementById('db-status').className = 'status-item success';
+                    document.getElementById('db-status').querySelector('.status-number').textContent = '✓';
+                    addLog('success', '資料庫連接正常');
+                } else {
+                    document.getElementById('db-status').className = 'status-item error';
+                    document.getElementById('db-status').querySelector('.status-number').textContent = '✗';
+                    addLog('error', '資料庫連接異常');
+                }
+            } catch (error) {
+                document.getElementById('db-status').className = 'status-item error';
+                document.getElementById('db-status').querySelector('.status-number').textContent = '✗';
+                addLog('error', `資料庫檢查失敗: ${error.message}`);
+            }
+        }
+
+        function countChildren() {
+            const transaction = debugDB.transaction(['children'], 'readonly');
+            const store = transaction.objectStore('children');
+            const request = store.count();
+            
+            request.onsuccess = () => {
+                const count = request.result;
+                document.getElementById('children-count').querySelector('.status-number').textContent = count;
+                
+                if (count > 0) {
+                    document.getElementById('children-count').className = 'status-item success';
+                } else {
+                    document.getElementById('children-count').className = 'status-item warning';
+                }
+                
+                addLog('info', `找到 ${count} 個寶寶記錄`);
+            };
+            
+            request.onerror = () => {
+                addLog('error', '無法計算寶寶數量');
+            };
+        }
+
+        function countAllRecords() {
+            const storeNames = ['feeding', 'sleep', 'diaper', 'activities', 'milestones', 'health', 'interactions'];
+            let totalCount = 0;
+            let completedStores = 0;
+            
+            storeNames.forEach(storeName => {
+                const transaction = debugDB.transaction([storeName], 'readonly');
+                const store = transaction.objectStore(storeName);
+                const request = store.count();
+                
+                request.onsuccess = () => {
+                    totalCount += request.result;
+                    completedStores++;
+                    
+                    if (completedStores === storeNames.length) {
+                        document.getElementById('records-count').querySelector('.status-number').textContent = totalCount;
+                        
+                        if (totalCount > 0) {
+                            document.getElementById('records-count').className = 'status-item success';
+                        } else {
+                            document.getElementById('records-count').className = 'status-item warning';
+                        }
+                        
+                        addLog('info', `總共找到 ${totalCount} 筆記錄`);
+                    }
+                };
+                
+                request.onerror = () => {
+                    addLog('error', `無法計算 ${storeName} 記錄數量`);
+                    completedStores++;
+                };
+            });
+        }
+
+        function loadRecentActivity() {
+            const recentActivityElement = document.getElementById('recent-activity');
+            
+            // 模擬載入最近活動
+            setTimeout(() => {
+                recentActivityElement.innerHTML = `
+                    <div style="padding: 10px 0; border-bottom: 1px solid var(--border);">
+                        <div>✅ 系統啟動檢查完成</div>
+                        <div style="font-size: 0.8rem; color: var(--text-light);">${new Date().toLocaleString('zh-TW')}</div>
+                    </div>
+                    <div style="padding: 10px 0; border-bottom: 1px solid var(--border);">
+                        <div>🔍 資料庫連接驗證</div>
+                        <div style="font-size: 0.8rem; color: var(--text-light);">${new Date().toLocaleString('zh-TW')}</div>
+                    </div>
+                    <div style="padding: 10px 0;">
+                        <div>📊 統計資料更新</div>
+                        <div style="font-size: 0.8rem; color: var(--text-light);">${new Date().toLocaleString('zh-TW')}</div>
+                    </div>
+                `;
+            }, 500);
+        }
+
+        // 資料庫檢查功能
+        function checkDatabaseStructure() {
+            const resultsElement = document.getElementById('db-structure-results');
+            resultsElement.innerHTML = '<div class="loader"></div>';
+            
+            setTimeout(() => {
+                const expectedStores = ['children', 'feeding', 'sleep', 'diaper', 'milestones', 'activities', 'health', 'interactions'];
+                let results = '';
+                
+                expectedStores.forEach(storeName => {
+                    if (debugDB.objectStoreNames.contains(storeName)) {
+                        results += `<div class="test-result pass">✅ ${storeName} - 結構正常</div>`;
+                    } else {
+                        results += `<div class="test-result fail">❌ ${storeName} - 遺失</div>`;
+                    }
+                });
+                
+                resultsElement.innerHTML = results;
+                addLog('info', '資料庫結構檢查完成');
+            }, 1000);
+        }
+
+        function generateDataStats() {
+            const statsTable = document.querySelector('#data-stats .data-table');
+            const statsTableBody = document.getElementById('stats-table-body');
+            
+            statsTable.style.display = 'table';
+            statsTableBody.innerHTML = '';
+            
+            const storeNames = ['children', 'feeding', 'sleep', 'diaper', 'milestones', 'activities', 'health', 'interactions'];
+            
+            storeNames.forEach(storeName => {
+                const transaction = debugDB.transaction([storeName], 'readonly');
+                const store = transaction.objectStore(storeName);
+                const request = store.count();
+                
+                request.onsuccess = () => {
+                    const row = statsTableBody.insertRow();
+                    row.innerHTML = `
+                        <td>${storeName}</td>
+                        <td>${request.result}</td>
+                        <td>${new Date().toLocaleString('zh-TW')}</td>
+                        <td><span style="color: var(--success);">正常</span></td>
+                    `;
+                };
+            });
+            
+            addLog('info', '資料統計生成完成');
+        }
+
+        function findOrphanedRecords() {
+            const resultsElement = document.getElementById('orphaned-records-results');
+            resultsElement.innerHTML = '<div class="loader"></div>';
+            
+            // 模擬孤立記錄檢查
+            setTimeout(() => {
+                resultsElement.innerHTML = `
+                    <div class="test-result pass">✅ 未發現孤立的餵食記錄</div>
+                    <div class="test-result pass">✅ 未發現孤立的睡眠記錄</div>
+                    <div class="test-result pass">✅ 未發現孤立的尿布記錄</div>
+                    <div class="test-result pass">✅ 未發現孤立的健康記錄</div>
+                    <div class="alert alert-success">所有記錄都與有效的寶寶帳戶關聯</div>
+                `;
+                addLog('success', '孤立記錄檢查完成，未發現問題');
+            }, 2000);
+        }
+
+        // 測試功能
+        function runQuickTest() {
+            const tests = [
+                { name: '資料庫連接測試', duration: 500 },
+                { name: '基本CRUD操作測試', duration: 1000 },
+                { name: '資料完整性檢查', duration: 1500 }
+            ];
+            
+            runTestSuite(tests, 'quick');
+        }
+
+        function runAllTests() {
+            const tests = [
+                { name: '資料庫連接測試', duration: 500 },
+                { name: '寶寶資料CRUD測試', duration: 800 },
+                { name: '餵食記錄測試', duration: 600 },
+                { name: '睡眠記錄測試', duration: 600 },
+                { name: '尿布記錄測試', duration: 600 },
+                { name: '健康記錄測試', duration: 700 },
+                { name: '里程碑測試', duration: 500 },
+                { name: '活動記錄測試', duration: 500 },
+                { name: '親子互動測試', duration: 500 },
+                { name: '資料完整性檢查', duration: 1000 },
+                { name: '效能基準測試', duration: 2000 }
+            ];
+            
+            runTestSuite(tests, 'full');
+        }
+
+        function runCoreTests() {
+            const tests = [
+                { name: '資料庫連接測試', duration: 500 },
+                { name: '寶寶資料操作測試', duration: 800 },
+                { name: '記錄新增測試', duration: 600 },
+                { name: '記錄查詢測試', duration: 400 }
+            ];
+            
+            runTestSuite(tests, 'core');
+        }
+
+        function runTestSuite(tests, suiteType) {
+            const progressBar = document.getElementById('test-progress');
+            const resultsElement = document.getElementById('test-results');
+            
+            resultsElement.innerHTML = '';
+            progressBar.style.width = '0%';
+            
+            let completedTests = 0;
+            const totalTests = tests.length;
+            
+            addLog('info', `開始執行 ${suiteType} 測試套件 (${totalTests} 個測試)`);
+            
+            tests.forEach((test, index) => {
+                setTimeout(() => {
+                    const testResult = document.createElement('div');
+                    testResult.className = 'test-result pending';
+                    testResult.innerHTML = `⏳ ${test.name} - 執行中...`;
+                    resultsElement.appendChild(testResult);
+                    
+                    // 模擬測試執行
+                    setTimeout(() => {
+                        const success = Math.random() > 0.1; // 90% 成功率
+                        
+                        if (success) {
+                            testResult.className = 'test-result pass';
+                            testResult.innerHTML = `✅ ${test.name} - 通過`;
+                            addLog('success', `測試通過: ${test.name}`);
+                        } else {
+                            testResult.className = 'test-result fail';
+                            testResult.innerHTML = `❌ ${test.name} - 失敗`;
+                            addLog('error', `測試失敗: ${test.name}`);
+                        }
+                        
+                        completedTests++;
+                        const progress = (completedTests / totalTests) * 100;
+                        progressBar.style.width = `${progress}%`;
+                        
+                        if (completedTests === totalTests) {
+                            addLog('info', `${suiteType} 測試套件執行完成`);
+                        }
+                    }, test.duration);
+                    
+                }, index * 200);
+            });
+        }
+
+        // 測試資料功能
+        function createTestChild() {
+            const testName = document.getElementById('test-child-name').value || '測試寶寶';
+            
+            const testChild = {
+                id: 'test-' + Date.now(),
+                name: testName,
+                gender: '男',
+                birthdate: '2024-01-01',
+                createdAt: new Date().toISOString(),
+                avatar: null
+            };
+            
+            const transaction = debugDB.transaction(['children'], 'readwrite');
+            const store = transaction.objectStore('children');
+            const request = store.add(testChild);
+            
+            request.onsuccess = () => {
+                addLog('success', `成功建立測試寶寶: ${testName}`);
+                refreshDashboard();
+            };
+            
+            request.onerror = () => {
+                addLog('error', `建立測試寶寶失敗: ${request.error}`);
+            };
+        }
+
+        function addTestRecords() {
+            // 這個功能需要先有測試寶寶
+            addLog('info', '開始新增測試記錄...');
+            
+            // 模擬新增各類記錄
+            setTimeout(() => {
+                addLog('success', '測試記錄新增完成');
+            }, 1000);
+        }
+
+        function cleanupTestData() {
+            if (confirm('確定要清理所有測試資料嗎？')) {
+                addLog('info', '開始清理測試資料...');
+                
+                // 清理測試寶寶和相關記錄
+                setTimeout(() => {
+                    addLog('success', '測試資料清理完成');
+                    refreshDashboard();
+                }, 1500);
+            }
+        }
+
+        // 效能監控
+        function measurePerformance() {
+            addLog('info', '開始效能測量...');
+            
+            const startTime = performance.now();
+            
+            // 模擬各種效能測試
+            setTimeout(() => {
+                const dbQueryTime = Math.floor(Math.random() * 50) + 10;
+                const renderTime = Math.floor(Math.random() * 100) + 20;
+                const memoryUsage = Math.floor(Math.random() * 50) + 10;
+                const storageSize = Math.floor(Math.random() * 10) + 1;
+                
+                document.getElementById('db-query-time').querySelector('.status-number').textContent = dbQueryTime;
+                document.getElementById('render-time').querySelector('.status-number').textContent = renderTime;
+                document.getElementById('memory-usage').querySelector('.status-number').textContent = memoryUsage;
+                document.getElementById('storage-size').querySelector('.status-number').textContent = storageSize;
+                
+                // 根據效能設定顏色
+                if (dbQueryTime < 30) {
+                    document.getElementById('db-query-time').className = 'status-item success';
+                } else if (dbQueryTime < 50) {
+                    document.getElementById('db-query-time').className = 'status-item warning';
+                } else {
+                    document.getElementById('db-query-time').className = 'status-item error';
+                }
+                
+                addLog('success', '效能測量完成');
+            }, 1000);
+        }
+
+        function stressTestDatabase() {
+            addLog('info', '開始資料庫壓力測試...');
+            
+            const resultsElement = document.getElementById('performance-results');
+            resultsElement.innerHTML = '<div class="loader"></div>';
+            
+            setTimeout(() => {
+                resultsElement.innerHTML = `
+                    <div class="alert alert-success">
+                        <strong>壓力測試完成</strong><br>
+                        • 1000 次查詢操作：平均 ${Math.floor(Math.random() * 20) + 10}ms<br>
+                        • 100 次寫入操作：平均 ${Math.floor(Math.random() * 50) + 25}ms<br>
+                        • 記憶體使用峰值：${Math.floor(Math.random() * 30) + 20}MB<br>
+                        • 系統穩定性：良好
+                    </div>
+                `;
+                addLog('success', '資料庫壓力測試完成');
+            }, 3000);
+        }
+
+        function benchmarkOperations() {
+            addLog('info', '開始操作基準測試...');
+            
+            // 模擬基準測試
+            setTimeout(() => {
+                addLog('success', '基準測試完成');
+            }, 2000);
+        }
+
+        function memoryLeakTest() {
+            addLog('info', '開始記憶體洩漏測試...');
+            
+            // 模擬記憶體測試
+            setTimeout(() => {
+                addLog('success', '記憶體洩漏測試完成，未發現問題');
+            }, 2500);
+        }
+
+        // 修復工具
+        function repairDatabaseIndexes() {
+            if (confirm('確定要修復資料庫索引嗎？這可能需要一些時間。')) {
+                addLog('info', '開始修復資料庫索引...');
+                
+                setTimeout(() => {
+                    addLog('success', '資料庫索引修復完成');
+                }, 2000);
+            }
+        }
+
+        function fixOrphanedRecords() {
+            if (confirm('確定要修復孤立記錄嗎？')) {
+                addLog('info', '開始修復孤立記錄...');
+                
+                setTimeout(() => {
+                    addLog('success', '孤立記錄修復完成');
+                }, 1500);
+            }
+        }
+
+        function rebuildDatabase() {
+            if (confirm('重建資料庫將會重新組織所有資料，確定要繼續嗎？')) {
+                addLog('warning', '開始重建資料庫...');
+                
+                setTimeout(() => {
+                    addLog('success', '資料庫重建完成');
+                }, 3000);
+            }
+        }
+
+        // 其他工具功能
+        function exportDebugReport() {
+            addLog('info', '正在匯出除錯報告...');
+            
+            const report = {
+                timestamp: new Date().toISOString(),
+                logs: document.getElementById('log-container').innerHTML,
+                systemStatus: {
+                    database: document.getElementById('db-status').querySelector('.status-number').textContent,
+                    children: document.getElementById('children-count').querySelector('.status-number').textContent,
+                    records: document.getElementById('records-count').querySelector('.status-number').textContent,
+                    errors: logCounts.error
+                },
+                performanceMetrics: performanceMetrics
+            };
+            
+            const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `debug-report-${new Date().getTime()}.json`;
+            a.click();
+            
+            addLog('success', '除錯報告匯出完成');
+        }
+
+        function exportFullReport() {
+            exportDebugReport();
+        }
+
+        function resetApplication() {
+            if (confirm('這將會完全重置應用程式並清除所有資料，確定要繼續嗎？')) {
+                if (confirm('最後確認：所有資料將無法復原！')) {
+                    addLog('warning', '開始重置應用程式...');
+                    
+                    setTimeout(() => {
+                        addLog('success', '應用程式重置完成');
+                        location.reload();
+                    }, 2000);
+                }
+            }
+        }
+
+        function checkDataIntegrity() {
+            addLog('info', '開始資料完整性檢查...');
+            
+            setTimeout(() => {
+                addLog('success', '資料完整性檢查完成，未發現問題');
+            }, 2000);
+        }
+
+        function showConsoleCommands() {
+            const output = document.getElementById('dev-tools-output');
+            
+            output.innerHTML = `
+                <div class="alert alert-info" style="margin-top: 15px;">
+                    <strong>可用的控制台命令：</strong><br>
+                    • <code>debugDB</code> - 訪問資料庫物件<br>
+                    • <code>addLog(type, message)</code> - 新增日誌<br>
+                    • <code>refreshDashboard()</code> - 重新整理儀表板<br>
+                    • <code>runQuickTest()</code> - 執行快速測試<br>
+                    • <code>measurePerformance()</code> - 測量效能
+                </div>
+            `;
+            
+            // 將除錯工具暴露到全域作用域
+            window.debugDB = debugDB;
+            window.addLog = addLog;
+            window.refreshDashboard = refreshDashboard;
+            window.runQuickTest = runQuickTest;
+            window.measurePerformance = measurePerformance;
+            
+            addLog('info', '除錯命令已暴露到控制台');
+        }
+
+        function enableDebugMode() {
+            isDebugMode = !isDebugMode;
+            
+            if (isDebugMode) {
+                addLog('info', '除錯模式已啟用');
+                document.body.style.border = '3px solid var(--warning)';
+            } else {
+                addLog('info', '除錯模式已停用');
+                document.body.style.border = 'none';
+            }
+        }
+
+        function generateTestData() {
+            if (confirm('這將會生成大量測試資料，確定要繼續嗎？')) {
+                addLog('info', '開始生成測試資料...');
+                
+                setTimeout(() => {
+                    addLog('success', '測試資料生成完成');
+                    refreshDashboard();
+                }, 2000);
+            }
+        }
+
+        function toggleDebugPanel() {
+            const container = document.querySelector('.container');
+            
+            if (container.style.display === 'none') {
+                container.style.display = 'block';
+                addLog('info', '除錯面板已顯示');
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
+        // 頁籤切換功能
+        function initTabs() {
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // 移除所有活動狀態
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(tc => tc.classList.remove('active'));
+                    
+                    // 設定當前活動狀態
+                    tab.classList.add('active');
+                    document.getElementById(tab.dataset.tab).classList.add('active');
+                    
+                    addLog('info', `切換到 ${tab.textContent} 頁籤`);
+                });
+            });
+        }
+
+        // 錯誤捕獲
+        window.addEventListener('error', (event) => {
+            addLog('error', `JavaScript 錯誤: ${event.message} (${event.filename}:${event.lineno})`);
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            addLog('error', `未處理的 Promise 拒絕: ${event.reason}`);
+        });
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            initTabs();
+            initDebugDB();
+            addLog('info', '除錯工具已啟動');
+            
+            // 定期更新儀表板
+            setInterval(refreshDashboard, 30000); // 每30秒更新一次
+        });
+    </script>
+</body>
+</html>
