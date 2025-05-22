@@ -805,6 +805,20 @@
             cursor: pointer;
         }
 
+        .mood-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .mood-grid .toggle-option {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 8px;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
@@ -1330,6 +1344,35 @@
             document.getElementById('modal').classList.remove('active');
         }
 
+        // 情緒相關工具函數
+        function getMoodEmoji(mood) {
+            const moodMap = {
+                'happy': '😄',
+                'excited': '🤩',
+                'calm': '😊',
+                'sleepy': '😴',
+                'curious': '🤔',
+                'playful': '😆',
+                'sad': '😢',
+                'angry': '😠'
+            };
+            return moodMap[mood] || '😊';
+        }
+
+        function getMoodText(mood) {
+            const moodMap = {
+                'happy': '開心',
+                'excited': '興奮',
+                'calm': '平靜',
+                'sleepy': '想睡',
+                'curious': '好奇',
+                'playful': '愛玩',
+                'sad': '難過',
+                'angry': '生氣'
+            };
+            return moodMap[mood] || '平靜';
+        }
+
         // 更新頁面內容
         function updatePage(page) {
             currentPage = page;
@@ -1578,7 +1621,32 @@
                                     case 'health':
                                         recordIcon = '💊';
                                         
-                                        if (record.type === 'weight') {
+                                        if (record.type === 'temperature') {
+                                            let tempStatus = '';
+                                            let tempColor = '';
+                                            if (record.value >= 38) {
+                                                tempStatus = '發燒';
+                                                tempColor = '#ff6b6b';
+                                            } else if (record.value >= 37.5) {
+                                                tempStatus = '微燒';
+                                                tempColor = '#ffa500';
+                                            } else if (record.value < 36) {
+                                                tempStatus = '偏低';
+                                                tempColor = '#6bb6ff';
+                                            } else {
+                                                tempStatus = '正常';
+                                                tempColor = '#51cf66';
+                                            }
+                                            
+                                            recordContent = `
+                                                <div class="record-details">
+                                                    <span class="record-tag">體溫</span>
+                                                    <span class="record-tag" style="background-color: ${tempColor}; color: white;">
+                                                        ${record.value}°C ${tempStatus}
+                                                    </span>
+                                                </div>
+                                            `;
+                                        } else if (record.type === 'weight') {
                                             recordContent = `
                                                 <div class="record-details">
                                                     <span class="record-tag">體重</span>
@@ -1611,23 +1679,12 @@
                                     case 'interactions':
                                         recordIcon = '👨‍👩‍👧';
                                         
-                                        // 情緒表情
-                                        let moodEmoji = '';
-                                        if (record.mood === 'happy') {
-                                            moodEmoji = '😄';
-                                        } else if (record.mood === 'calm') {
-                                            moodEmoji = '😊';
-                                        } else if (record.mood === 'sad') {
-                                            moodEmoji = '😢';
-                                        } else if (record.mood === 'angry') {
-                                            moodEmoji = '😠';
-                                        }
+                                        const moodEmoji = getMoodEmoji(record.mood);
+                                        const moodText = getMoodText(record.mood);
                                         
                                         recordContent = `
                                             <div class="record-details">
-                                                <span class="record-tag">${moodEmoji} ${record.mood === 'happy' ? '開心' : 
-                                                                              record.mood === 'calm' ? '平靜' : 
-                                                                              record.mood === 'sad' ? '難過' : '生氣'}</span>
+                                                <span class="record-tag">${moodEmoji} ${moodText}</span>
                                             </div>
                                             ${record.note ? `<div style="font-size: 0.9rem; margin-top: 4px;">${record.note}</div>` : ''}
                                             ${record.photoData ? `
@@ -1763,6 +1820,7 @@
                 }
             };
         }
+
         // 載入照護頁面
         function loadCarePage() {
             const mainContent = document.getElementById('main-content');
@@ -2589,6 +2647,7 @@
             
             openModal();
         }
+
         // 載入發展頁面
         function loadDevelopmentPage() {
             const mainContent = document.getElementById('main-content');
@@ -2861,25 +2920,14 @@
                         const interactionItem = document.createElement('div');
                         interactionItem.className = 'record-item';
                         
-                        // 情緒表情
-                        let moodEmoji = '';
-                        if (interaction.mood === 'happy') {
-                            moodEmoji = '😄';
-                        } else if (interaction.mood === 'calm') {
-                            moodEmoji = '😊';
-                        } else if (interaction.mood === 'sad') {
-                            moodEmoji = '😢';
-                        } else if (interaction.mood === 'angry') {
-                            moodEmoji = '😠';
-                        }
+                        const moodEmoji = getMoodEmoji(interaction.mood);
+                        const moodText = getMoodText(interaction.mood);
                         
                         interactionItem.innerHTML = `
                             <div class="record-main">
                                 <div class="record-time">${formatDateTime(new Date(interaction.timestamp))}</div>
                                 <div class="record-details">
-                                    <span class="record-tag">${moodEmoji} ${interaction.mood === 'happy' ? '開心' : 
-                                                                          interaction.mood === 'calm' ? '平靜' : 
-                                                                          interaction.mood === 'sad' ? '難過' : '生氣'}</span>
+                                    <span class="record-tag">${moodEmoji} ${moodText}</span>
                                 </div>
                                 ${interaction.note ? `<div style="font-size: 0.9rem; margin-top: 4px;">${interaction.note}</div>` : ''}
                                 ${interaction.photoData ? `
@@ -2987,7 +3035,7 @@
             openModal();
         }
 
-        // 顯示新增親子互動記錄彈窗
+        // 顯示新增親子互動記錄彈窗（增強版 - 8種情緒）
         function showAddInteractionModal() {
             const modalTitle = document.getElementById('modal-title');
             const modalBody = document.getElementById('modal-body');
@@ -3002,9 +3050,13 @@
                     
                     <div class="form-group">
                         <label class="form-label">寶寶情緒</label>
-                        <div class="toggle-group" id="interaction-mood">
+                        <div class="mood-grid" id="interaction-mood">
                             <div class="toggle-option active" data-value="happy">😄 開心</div>
+                            <div class="toggle-option" data-value="excited">🤩 興奮</div>
                             <div class="toggle-option" data-value="calm">😊 平靜</div>
+                            <div class="toggle-option" data-value="sleepy">😴 想睡</div>
+                            <div class="toggle-option" data-value="curious">🤔 好奇</div>
+                            <div class="toggle-option" data-value="playful">😆 愛玩</div>
                             <div class="toggle-option" data-value="sad">😢 難過</div>
                             <div class="toggle-option" data-value="angry">😠 生氣</div>
                         </div>
@@ -3031,7 +3083,7 @@
             // 設定預設時間為現在
             document.getElementById('interaction-time').value = formatDateTimeLocal(new Date());
             
-            // 情緒切換
+            // 情緒切換 - 支援8種情緒
             const moodOptions = modalBody.querySelectorAll('#interaction-mood .toggle-option');
             let selectedMood = 'happy';
             
@@ -3095,12 +3147,13 @@
             openModal();
         }
 
-        // 載入健康頁面
+        // 載入健康頁面（增加體溫標籤頁）
         function loadHealthPage() {
             const mainContent = document.getElementById('main-content');
             mainContent.innerHTML = `
                 <div class="tabs">
                     <div class="tab active" data-tab="growth">成長</div>
+                    <div class="tab" data-tab="temperature">體溫</div>
                     <div class="tab" data-tab="vaccine">疫苗</div>
                     <div class="tab" data-tab="medication">用藥</div>
                 </div>
@@ -3131,6 +3184,43 @@
                             <div class="card-title">最近紀錄</div>
                         </div>
                         <div class="records-list" id="growth-records">
+                            <div class="loader"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 新增體溫記錄標籤頁 -->
+                <div class="tab-content" id="temperature-content">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">體溫記錄</div>
+                            <button class="btn-icon" id="add-temperature-btn">+</button>
+                        </div>
+                        <div class="card-content">
+                            <div class="growth-chart">
+                                <div class="chart-section-title">體溫趨勢 (°C)</div>
+                                <div class="chart-line" id="temperature-chart">
+                                    <!-- 體溫數據點將動態添加 -->
+                                </div>
+                            </div>
+                            
+                            <div class="mini-stat">
+                                <div>最近體溫</div>
+                                <div class="mini-stat-value" id="recent-temperature">-</div>
+                            </div>
+                            
+                            <div class="mini-stat">
+                                <div>平均體溫</div>
+                                <div class="mini-stat-value" id="average-temperature">-</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">最近紀錄</div>
+                        </div>
+                        <div class="records-list" id="temperature-records">
                             <div class="loader"></div>
                         </div>
                     </div>
@@ -3179,6 +3269,10 @@
                 showAddGrowthModal();
             });
             
+            document.getElementById('add-temperature-btn').addEventListener('click', () => {
+                showAddTemperatureModal();
+            });
+            
             document.getElementById('add-vaccine-btn').addEventListener('click', () => {
                 showAddVaccineModal();
             });
@@ -3190,6 +3284,9 @@
             // 載入成長記錄
             loadGrowthRecords();
             
+            // 載入體溫記錄
+            loadTemperatureRecords();
+            
             // 載入疫苗接種記錄
             loadVaccineRecords();
             
@@ -3197,6 +3294,231 @@
             loadMedicationRecords();
         }
 
+        // 新增體溫記錄相關功能
+        function showAddTemperatureModal() {
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+            
+            modalTitle.textContent = '新增體溫記錄';
+            modalBody.innerHTML = `
+                <form id="add-temperature-form">
+                    <div class="form-group">
+                        <label class="form-label">體溫 (°C)</label>
+                        <input type="number" class="form-control" id="temperature-value" 
+                               step="0.1" min="30" max="45" placeholder="例：36.5" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">測量方式</label>
+                        <div class="toggle-group" id="temperature-method">
+                            <div class="toggle-option active" data-value="forehead">額溫</div>
+                            <div class="toggle-option" data-value="ear">耳溫</div>
+                            <div class="toggle-option" data-value="armpit">腋溫</div>
+                            <div class="toggle-option" data-value="oral">口溫</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">時間</label>
+                        <input type="datetime-local" class="form-control" id="temperature-time" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">備註</label>
+                        <textarea class="form-control" id="temperature-note" 
+                                  placeholder="例：發燒、活動後等" rows="2"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn" style="width: 100%;">儲存</button>
+                </form>
+            `;
+            
+            // 設定預設時間為現在
+            document.getElementById('temperature-time').value = formatDateTimeLocal(new Date());
+            
+            // 測量方式切換
+            const methodOptions = modalBody.querySelectorAll('#temperature-method .toggle-option');
+            let selectedMethod = 'forehead';
+            
+            methodOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    methodOptions.forEach(opt => opt.classList.remove('active'));
+                    option.classList.add('active');
+                    selectedMethod = option.dataset.value;
+                });
+            });
+            
+            // 表單提交
+            const form = document.getElementById('add-temperature-form');
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const value = document.getElementById('temperature-value').value;
+                const time = document.getElementById('temperature-time').value;
+                const note = document.getElementById('temperature-note').value.trim();
+                
+                if (!value || !time) {
+                    showToast('請填寫所有必填欄位');
+                    return;
+                }
+                
+                const tempValue = parseFloat(value);
+                if (tempValue < 30 || tempValue > 45) {
+                    showToast('請輸入合理的體溫值');
+                    return;
+                }
+                
+                // 新增體溫記錄
+                const temperatureData = {
+                    childId: currentChildId,
+                    timestamp: new Date(time).toISOString(),
+                    type: 'temperature',
+                    value: tempValue,
+                    method: selectedMethod,
+                    note: note
+                };
+                
+                addRecord('health', temperatureData, () => {
+                    showToast('成功新增體溫紀錄');
+                    closeModal();
+                    
+                    // 重新載入體溫記錄
+                    loadTemperatureRecords();
+                });
+            });
+            
+            openModal();
+        }
+
+        function loadTemperatureRecords() {
+            const temperatureRecordsElement = document.getElementById('temperature-records');
+            const recentTemperatureElement = document.getElementById('recent-temperature');
+            const averageTemperatureElement = document.getElementById('average-temperature');
+            
+            getHealthRecordsByType('temperature', (records) => {
+                if (records.length === 0) {
+                    temperatureRecordsElement.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-text">尚無體溫紀錄</div>
+                        </div>
+                    `;
+                    recentTemperatureElement.textContent = '-';
+                    averageTemperatureElement.textContent = '-';
+                } else {
+                    // 顯示最近體溫
+                    recentTemperatureElement.textContent = `${records[0].value}°C`;
+                    
+                    // 計算平均體溫
+                    const avgTemp = records.reduce((sum, record) => sum + record.value, 0) / records.length;
+                    averageTemperatureElement.textContent = `${avgTemp.toFixed(1)}°C`;
+                    
+                    // 渲染記錄列表
+                    temperatureRecordsElement.innerHTML = '';
+                    
+                    records.forEach(record => {
+                        const recordItem = document.createElement('div');
+                        recordItem.className = 'record-item';
+                        
+                        const methodText = {
+                            'forehead': '額溫',
+                            'ear': '耳溫',
+                            'armpit': '腋溫',
+                            'oral': '口溫'
+                        }[record.method] || '額溫';
+                        
+                        // 判斷體溫狀態
+                        let tempStatus = '';
+                        let tempColor = '';
+                        if (record.value >= 38) {
+                            tempStatus = '發燒';
+                            tempColor = '#ff6b6b';
+                        } else if (record.value >= 37.5) {
+                            tempStatus = '微燒';
+                            tempColor = '#ffa500';
+                        } else if (record.value < 36) {
+                            tempStatus = '偏低';
+                            tempColor = '#6bb6ff';
+                        } else {
+                            tempStatus = '正常';
+                            tempColor = '#51cf66';
+                        }
+                        
+                        recordItem.innerHTML = `
+                            <div class="record-main">
+                                <div class="record-time">${formatDateTime(new Date(record.timestamp))}</div>
+                                <div class="record-details">
+                                    <span class="record-tag" style="background-color: ${tempColor}; color: white;">
+                                        ${record.value}°C ${tempStatus}
+                                    </span>
+                                    <span class="record-tag">${methodText}</span>
+                                </div>
+                                ${record.note ? `<div style="font-size: 0.9rem; margin-top: 4px;">${record.note}</div>` : ''}
+                            </div>
+                            <button class="btn-icon" data-id="${record.id}">×</button>
+                        `;
+                        
+                        // 綁定刪除按鈕
+                        recordItem.querySelector('.btn-icon').addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            deleteRecord('health', record.id, () => {
+                                loadTemperatureRecords();
+                            });
+                        });
+                        
+                        temperatureRecordsElement.appendChild(recordItem);
+                    });
+                    
+                    // 渲染體溫圖表
+                    renderTemperatureChart(records);
+                }
+            });
+        }
+
+        function renderTemperatureChart(records) {
+            const chartElement = document.getElementById('temperature-chart');
+            
+            if (records.length < 2) {
+                chartElement.innerHTML = `
+                    <div class="empty-state" style="padding: 10px 0;">
+                        <div class="empty-text">資料不足，無法顯示趨勢</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 對記錄進行排序（從舊到新）
+            const sortedRecords = [...records].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            
+            // 取最近 10 筆記錄
+            const recentRecords = sortedRecords.slice(-10);
+            
+            // 清空圖表
+            chartElement.innerHTML = '';
+            
+            const totalWidth = chartElement.offsetWidth;
+            const stepWidth = totalWidth / (recentRecords.length > 1 ? (recentRecords.length - 1) : 2);
+            
+            recentRecords.forEach((record, index) => {
+                const point = document.createElement('div');
+                point.className = 'chart-point';
+                point.style.left = `${index * stepWidth}px`;
+                point.dataset.value = `${record.value}°C`;
+                point.dataset.date = formatDate(new Date(record.timestamp));
+                
+                // 根據體溫設定顏色
+                if (record.value >= 38) {
+                    point.style.backgroundColor = '#ff6b6b';
+                } else if (record.value >= 37.5) {
+                    point.style.backgroundColor = '#ffa500';
+                } else if (record.value < 36) {
+                    point.style.backgroundColor = '#6bb6ff';
+                } else {
+                    point.style.backgroundColor = '#51cf66';
+                }
+                
+                chartElement.appendChild(point);
+            });
+        }
         // 載入成長記錄
         function loadGrowthRecords() {
             const growthRecordsElement = document.getElementById('growth-records');
@@ -3725,6 +4047,7 @@
             
             openModal();
         }
+
         // 載入設定頁面
         function loadSettingsPage() {
             const mainContent = document.getElementById('main-content');
